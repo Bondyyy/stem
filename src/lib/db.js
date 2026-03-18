@@ -1,51 +1,40 @@
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
-import path from 'path';
-import fs from 'fs';
+// src/lib/db.js
 
-// Biến để lưu trữ kết nối database, tránh tạo nhiều kết nối thừa
-let dbInstance = null;
+import path from 'path';
+import { open } from 'sqlite';
+import sqlite3 from 'sqlite3';
+
+let db = null;
 
 export async function getDb() {
-  // Nếu đã có kết nối rồi thì dùng lại luôn
-  if (dbInstance) return dbInstance;
+  if (db) return db;
 
-  // Xác định đường dẫn: Ưu tiên Volume trên Railway, nếu không có thì dùng file cục bộ
-  const dbPath = process.env.DATABASE_URL || path.join(process.cwd(), 'database.sqlite');
-  
-  // Tự động tạo thư mục chứa database nếu chưa có (tránh lỗi trên Railway)
-  const dbDir = path.dirname(dbPath);
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-  }
-
-  // Mở kết nối database
-  dbInstance = await open({
-    filename: dbPath,
+  db = await open({
+    filename: path.join(process.cwd(), 'database.sqlite'),
     driver: sqlite3.Database,
   });
 
-  // Khởi tạo các bảng nếu chưa tồn tại
-  await dbInstance.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE,
-      password TEXT,
-      role TEXT,
-      patient_code TEXT
-    );
-    CREATE TABLE IF NOT EXISTS records (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      patient_code TEXT,
-      week INTEGER,
-      weight REAL,
-      blood_pressure TEXT,
-      symptoms TEXT
-    );
-  `);
-
-  return dbInstance;
+  await initDb(db);
+  return db;
 }
 
-// Export thêm alias initDB để các file cũ không bị lỗi
-export const initDB = getDb;
+async function initDb(db) {
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      email        TEXT    NOT NULL UNIQUE,
+      password     TEXT    NOT NULL,
+      role         TEXT    NOT NULL,
+      patient_code TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS records (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_code   TEXT    NOT NULL,
+      week           INTEGER,
+      weight         REAL,
+      blood_pressure TEXT,
+      symptoms       TEXT
+    );
+  `);
+}
