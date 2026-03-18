@@ -90,7 +90,7 @@ td.week-cell { font-weight:500; color:var(--rose-dk); font-size:1rem; }
 /* form side */
 .form-body { padding:1.4rem 1.5rem; }
 .form { display:flex; flex-direction:column; gap:1.05rem; }
-.field { display:flex; flex-direction:column; gap:.35rem;  }
+.field { display:flex; flex-direction:column; gap:.35rem; }
 .field label { font-size:.75rem; font-weight:500; color:var(--muted); letter-spacing:.05em; text-transform:uppercase; }
 .input-wrap { position:relative; }
 input[type="number"], input[type="text"], textarea {
@@ -518,7 +518,7 @@ export default function MomDashboard() {
               </div>
             </div>
 
-            <div className="modal-body" style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px' }}>
+            <div className="modal-body">
               <p style={{ fontSize: '.8rem', color: 'var(--muted)', marginTop: '-.3rem' }}>
                 Tuần thai không thể thay đổi. Chỉnh sửa các chỉ số bên dưới.
               </p>
@@ -546,7 +546,7 @@ export default function MomDashboard() {
               )}
             </div>
 
-            <div className="modal-footer"style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px' }}>
+            <div className="modal-footer">
               <button className="btn-cancel" onClick={() => setEditRecord(null)}>
                 Hủy
               </button>
