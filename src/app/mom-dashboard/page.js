@@ -518,8 +518,8 @@ export default function MomDashboard() {
               </div>
             </div>
 
-            <div className="modal-body">
-              <p style={{ fontSize: '.8rem', color: "#0404e5", marginTop: '-.3rem' }}>
+            <div className="modal-body" style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px' }}>
+              <p style={{ fontSize: '.8rem', color: 'var(--muted)', marginTop: '-.3rem' }}>
                 Tuần thai không thể thay đổi. Chỉnh sửa các chỉ số bên dưới.
               </p>
 
@@ -546,7 +546,7 @@ export default function MomDashboard() {
               )}
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-footer"style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '8px' }}>
               <button className="btn-cancel" onClick={() => setEditRecord(null)}>
                 Hủy
               </button>
