@@ -1,40 +1,35 @@
-// src/lib/db.js
-
-import path from 'path';
-import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
+import path from 'path';
 
-let db = null;
-
-export async function getDb() {
-  if (db) return db;
-
-  db = await open({
-    filename: path.join(process.cwd(), 'database.sqlite'),
+export async function initDB() {
+  // Ưu tiên dùng đường dẫn từ biến môi trường (Railway Volume)
+  // Nếu không có thì mới dùng file cục bộ ở thư mục gốc
+  const dbPath = process.env.DATABASE_URL || path.join(process.cwd(), 'database.sqlite');
+  
+  const db = await open({
+    filename: dbPath,
     driver: sqlite3.Database,
   });
 
-  await initDb(db);
-  return db;
-}
-
-async function initDb(db) {
+  // Tạo các bảng (giữ nguyên code cũ của bạn bên dưới)
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      id           INTEGER PRIMARY KEY AUTOINCREMENT,
-      email        TEXT    NOT NULL UNIQUE,
-      password     TEXT    NOT NULL,
-      role         TEXT    NOT NULL,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT,
+      password TEXT,
+      role TEXT,
       patient_code TEXT
     );
-
     CREATE TABLE IF NOT EXISTS records (
-      id             INTEGER PRIMARY KEY AUTOINCREMENT,
-      patient_code   TEXT    NOT NULL,
-      week           INTEGER,
-      weight         REAL,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_code TEXT,
+      week INTEGER,
+      weight REAL,
       blood_pressure TEXT,
-      symptoms       TEXT
+      symptoms TEXT
     );
   `);
+
+  return db;
 }
