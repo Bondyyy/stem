@@ -90,7 +90,7 @@ td.week-cell { font-weight:500; color:var(--rose-dk); font-size:1rem; }
 /* form side */
 .form-body { padding:1.4rem 1.5rem; }
 .form { display:flex; flex-direction:column; gap:1.05rem; }
-.field { display:flex; flex-direction:column; gap:.35rem; }
+.field { display:flex; flex-direction:column; gap:.35rem; color:var(--rose-dk); }
 .field label { font-size:.75rem; font-weight:500; color:var(--muted); letter-spacing:.05em; text-transform:uppercase; }
 .input-wrap { position:relative; }
 input[type="number"], input[type="text"], textarea {
