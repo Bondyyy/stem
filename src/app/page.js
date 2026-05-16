@@ -86,9 +86,20 @@ export default function HomePage() {
 
       const { user } = data;
       if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_session', JSON.stringify({
+          role: user.role,
+          email: user.email,
+          patient_code: user.patient_code || null,
+          session_id: crypto.randomUUID(),
+          updated_at: Date.now()
+        }));
         localStorage.setItem('role',         user.role);
         localStorage.setItem('email',        user.email);
-        if (user.patient_code) localStorage.setItem('patient_code', user.patient_code);
+        if (user.patient_code) {
+          localStorage.setItem('patient_code', user.patient_code);
+        } else {
+          localStorage.setItem('patient_code', '');
+        }
       }
 
       setSuccess(mode === 'register' ? 'Đăng ký thành công! Đang chuyển hướng…' : 'Đăng nhập thành công! Đang chuyển hướng…');

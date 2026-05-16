@@ -31,6 +31,14 @@ function CustomDot(props) {
   );
 }
 
+function getCurrentSession() {
+  try {
+    return JSON.parse(localStorage.getItem('auth_session') || 'null');
+  } catch {
+    return null;
+  }
+}
+
 export default function DoctorDashboard() {
   const router = useRouter();
 
@@ -66,22 +74,65 @@ export default function DoctorDashboard() {
   }, []);
 
   useEffect(() => {
-    const email = localStorage.getItem('email');
-    if (!email) { router.push('/'); return; }
+    const session = getCurrentSession();
+    if (!session || session.role !== 'doctor') {
+      router.push('/');
+      return;
+    }
+
+    const email = localStorage.getItem('email') || session.email;
+    if (!email || (session.email && session.email !== email)) {
+      router.push('/');
+      return;
+    }
+
     setDoctorEmail(email);
     fetchPatients(email);
+
+    const handleStorageChange = (e) => {
+      if (['auth_session', 'auth_event', 'role', 'email', 'patient_code'].includes(e.key)) {
+        const curSession = getCurrentSession();
+        if (!curSession || curSession.role !== 'doctor') {
+          router.push('/');
+          return;
+        }
+
+        try {
+          const ev = JSON.parse(localStorage.getItem('auth_event') || 'null');
+          if (ev && ev.type === 'logout') {
+            router.push('/');
+            return;
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, [fetchPatients, router]);
 
   function handleLogout() {
+    const confirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất không?");
+    if (!confirmed) return;
+
     localStorage.removeItem('role');
     localStorage.removeItem('patient_code');
     localStorage.removeItem('email');
+    localStorage.removeItem('auth_session');
+    
+    localStorage.setItem('auth_event', JSON.stringify({
+      type: 'logout',
+      at: Date.now()
+    }));
+    
     router.push('/');
   }
 
   /* ── add patient ── */
   async function handleAddPatient(e) {
     e.preventDefault();
+    const s = getCurrentSession();
+    if (!s || s.role !== 'doctor') { router.push('/'); return; }
     const code = patientInput.trim().toUpperCase();
     if (!code) return;
     setPatientMsg('');
@@ -101,6 +152,8 @@ export default function DoctorDashboard() {
 
   /* ── delete patient ── */
   async function handleDeletePatient(code) {
+    const s = getCurrentSession();
+    if (!s || s.role !== 'doctor') { router.push('/'); return; }
     if (!window.confirm('Bạn có chắc chắn muốn xóa bệnh nhân này khỏi danh sách quản lý?')) return;
     try {
       const res = await fetch('/api/patients', {
@@ -114,6 +167,8 @@ export default function DoctorDashboard() {
   /* ── create appointment ── */
   async function handleCreateAppointment(e) {
     e.preventDefault();
+    const s = getCurrentSession();
+    if (!s || s.role !== 'doctor') { router.push('/'); return; }
     if (!apptCode || !apptTitle || !apptDate || !apptTime) return;
     setApptSaving(true); setApptMsg('');
     try {
@@ -142,10 +197,13 @@ export default function DoctorDashboard() {
 
   async function handleSearch(e, codeOverride) {
     e?.preventDefault();
+    const s = getCurrentSession();
+    if (!s || s.role !== 'doctor') { router.push('/'); return; }
     const code = (codeOverride || query).trim().toUpperCase();
     if (!code) return;
 
     if (codeOverride) setQuery(code);
+    setApptCode(code);
 
     setLoading(true); setError(''); setRecords(null); setSearched(code);
 
@@ -170,7 +228,20 @@ export default function DoctorDashboard() {
   const minW          = weights.length ? Math.min(...weights) : null;
   const maxW          = weights.length ? Math.max(...weights) : null;
   const latestW       = weights.at(-1) ?? null;
-   return (
+  const totalWeeks    = records?.length ?? 0;
+  const latestRecord  = records?.length ? records[records.length - 1] : null;
+  const latestBp      = latestRecord?.blood_pressure ?? null;
+  const latestMood    = latestRecord?.mood ?? null;
+
+  const selectedPatient = searched && patients.some(p => p.patient_code === searched);
+  const canCreateAppointment = selectedPatient && !loading && !error;
+
+  const chartData     = records?.map(r => ({
+    week:   r.week,
+    weight: r.weight ?? null,
+  })) ?? [];
+
+  return (
     <>
       <style dangerouslySetInnerHTML={{ __html: css }} />
 
@@ -328,7 +399,7 @@ export default function DoctorDashboard() {
                     <div className="card-sub">Theo dõi {totalWeeks} tuần thai kỳ</div>
                   </div>
                   <span style={{ fontSize: '.85rem', fontWeight: 600, background: 'var(--sage-dk)', color: '#fff', padding: '.3rem .8rem', borderRadius: 99 }}>
-                    Tuần {records.at(-1).week}
+                    Tuần {latestRecord?.week}
                   </span>
                 </div>
                 <div className="stat-row">
@@ -338,11 +409,11 @@ export default function DoctorDashboard() {
                   </div>
                   <div className="stat-box">
                     <div className="stat-label">Huyết áp gần nhất</div>
-                    <div className="stat-value">{records.at(-1).blood_pressure ?? '—'}</div>
+                    <div className="stat-value">{latestBp ?? '—'}</div>
                   </div>
                   <div className="stat-box">
                     <div className="stat-label">Tâm trạng gần nhất</div>
-                    <div className="stat-value">{records.at(-1).mood ?? '—'}</div>
+                    <div className="stat-value">{latestMood ?? '—'}</div>
                   </div>
                 </div>
               </div>
@@ -449,7 +520,7 @@ export default function DoctorDashboard() {
           )}
 
           {/* ── Lên lịch khám ── */}
-          {records !== null && !error && (
+          {canCreateAppointment && (
             <div className="card" style={{ marginBottom: 0 }}>
               <div className="card-header">
                 <div>

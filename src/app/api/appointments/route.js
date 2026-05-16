@@ -56,28 +56,52 @@ export async function POST(request) {
 
     const db = await getDb();
 
-    // Bảo mật: doctor chỉ được tạo lịch cho bệnh nhân trong danh sách quản lý
-    const inList = await db.get(
-      `SELECT id FROM doctor_patients WHERE doctor_email = ? AND patient_code = ?`,
-      created_by, patient_code.trim().toUpperCase()
-    );
+    try {
+      await db.exec('BEGIN TRANSACTION');
 
-    if (!inList) {
-      return NextResponse.json(
-        { error: 'Bệnh nhân không nằm trong danh sách quản lý của bạn.' },
-        { status: 403 }
+      // Bảo mật: doctor chỉ được tạo lịch cho bệnh nhân trong danh sách quản lý
+      const inList = await db.get(
+        `SELECT id FROM doctor_patients WHERE doctor_email = ? AND patient_code = ?`,
+        created_by, patient_code.trim().toUpperCase()
       );
+
+      if (!inList) {
+        await db.exec('ROLLBACK');
+        return NextResponse.json(
+          { error: 'Bệnh nhân không nằm trong danh sách quản lý của bạn.' },
+          { status: 403 }
+        );
+      }
+
+      // Kiểm tra trùng lịch cơ bản
+      const duplicate = await db.get(
+        `SELECT id FROM appointments WHERE patient_code = ? AND appointment_date = ? AND appointment_time = ?`,
+        patient_code.trim().toUpperCase(), appointment_date, appointment_time
+      );
+
+      if (duplicate) {
+        await db.exec('ROLLBACK');
+        return NextResponse.json(
+          { error: 'Bệnh nhân đã có lịch khám vào thời gian này.' },
+          { status: 409 }
+        );
+      }
+
+      const result = await db.run(
+        `INSERT INTO appointments (patient_code, title, appointment_date, appointment_time, location, created_by)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        patient_code.trim().toUpperCase(), title.trim(),
+        appointment_date, appointment_time, location?.trim() || null, created_by
+      );
+
+      const appt = await db.get(`SELECT * FROM appointments WHERE id = ?`, result.lastID);
+      
+      await db.exec('COMMIT');
+      return NextResponse.json({ message: 'Đã tạo lịch khám thành công.', appointment: appt }, { status: 201 });
+    } catch (err) {
+      await db.exec('ROLLBACK');
+      throw err;
     }
-
-    const result = await db.run(
-      `INSERT INTO appointments (patient_code, title, appointment_date, appointment_time, location, created_by)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      patient_code.trim().toUpperCase(), title.trim(),
-      appointment_date, appointment_time, location?.trim() || null, created_by
-    );
-
-    const appt = await db.get(`SELECT * FROM appointments WHERE id = ?`, result.lastID);
-    return NextResponse.json({ message: 'Đã tạo lịch khám thành công.', appointment: appt }, { status: 201 });
   } catch (err) {
     console.error('[POST /api/appointments]', err);
     return NextResponse.json({ error: 'Lỗi server nội bộ.' }, { status: 500 });

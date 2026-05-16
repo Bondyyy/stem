@@ -19,6 +19,14 @@ export async function getDb() {
 }
 
 async function initDb(db) {
+  // 1. Concurrency optimizations & foreign keys
+  await db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    PRAGMA foreign_keys = ON;
+    PRAGMA busy_timeout = 5000;
+  `);
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,6 +80,31 @@ async function initDb(db) {
       created_by       TEXT    NOT NULL,
       created_at       INTEGER NOT NULL DEFAULT (strftime('%s','now'))
     );
+
+    CREATE TABLE IF NOT EXISTS auth_attempts (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      email      TEXT    NOT NULL,
+      action     TEXT    NOT NULL,
+      ip         TEXT,
+      success    INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS otp_requests (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      email      TEXT    NOT NULL,
+      ip         TEXT,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_patient_code ON users(patient_code) WHERE patient_code IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_otp_email ON otp_verifications(email);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_doctor_patients ON doctor_patients(doctor_email, patient_code);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_records_patient_week ON records(patient_code, week);
+    CREATE INDEX IF NOT EXISTS idx_todos_patient ON todos(patient_code);
+    CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments(patient_code);
+    CREATE INDEX IF NOT EXISTS idx_appointments_created_by ON appointments(created_by);
   `);
 
   await safeAddColumn(db, 'records', 'mood', 'TEXT');

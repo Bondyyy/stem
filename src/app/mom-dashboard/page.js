@@ -12,6 +12,14 @@ const WELCOME = {
   text: 'Xin chào mẹ! 🌸 Mình là người bạn đồng hành của mẹ trong hành trình thai kỳ. Mẹ muốn tâm sự hay hỏi gì mình cũng luôn lắng nghe nhé! 💕',
 };
 
+function getCurrentSession() {
+  try {
+    return JSON.parse(localStorage.getItem('auth_session') || 'null');
+  } catch {
+    return null;
+  }
+}
+
 export default function MomDashboard() {
   const router = useRouter();
 
@@ -96,12 +104,43 @@ export default function MomDashboard() {
   }, []);
 
   useEffect(() => {
-    const code = localStorage.getItem('patient_code');
-    if (!code) { router.push('/'); return; }
+    const session = getCurrentSession();
+    if (!session || session.role !== 'mom') {
+      router.push('/');
+      return;
+    }
+
+    const code = localStorage.getItem('patient_code') || session.patient_code;
+    if (!code || (session.patient_code && session.patient_code !== code)) {
+      router.push('/');
+      return;
+    }
+
     setPatientCode(code);
     fetchRecords(code);
     fetchTodos(code);
     fetchAppointments(code);
+
+    const handleStorageChange = (e) => {
+      if (['auth_session', 'auth_event', 'role', 'email', 'patient_code'].includes(e.key)) {
+        const curSession = getCurrentSession();
+        if (!curSession || curSession.role !== 'mom') {
+          router.push('/');
+          return;
+        }
+        
+        try {
+          const ev = JSON.parse(localStorage.getItem('auth_event') || 'null');
+          if (ev && ev.type === 'logout') {
+            router.push('/');
+            return;
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, [fetchRecords, fetchTodos, fetchAppointments, router]);
 
 
@@ -112,6 +151,8 @@ export default function MomDashboard() {
   /* ── submit new record ── */
   async function handleSubmit(e) {
     e.preventDefault();
+    const s = getCurrentSession();
+    if (!s || s.role !== 'mom') { router.push('/'); return; }
     if (!weight && !bloodPressure && !symptoms && !mood && !fetalMovement) {
       setFormError('Vui lòng nhập ít nhất một thông tin trước khi lưu.');
       return;
@@ -153,8 +194,11 @@ export default function MomDashboard() {
     setEditError('');
   }
 
-  /* ── save edit ── */
-  async function handleEditSave() {
+  /* ── handle save edit ── */
+  async function handleSaveEdit() {
+    const s = getCurrentSession();
+    if (!s || s.role !== 'mom') { router.push('/'); return; }
+    if (!editWeight && !editBP && !editSymptoms && !editMood && !editFetalMovement) return;
     setEditSaving(true); setEditError('');
     try {
       const res  = await fetch('/api/records', {
@@ -179,6 +223,8 @@ export default function MomDashboard() {
 
   /* ── delete record ── */
   async function handleDelete(record) {
+    const s = getCurrentSession();
+    if (!s || s.role !== 'mom') { router.push('/'); return; }
     const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa dữ liệu Tuần ${record.week}?`);
     if (!confirmed) return;
     setDeletingId(record.id);
@@ -197,6 +243,8 @@ export default function MomDashboard() {
   /* ── chat ── */
   async function handleChatSend(e) {
     e?.preventDefault();
+    const s = getCurrentSession();
+    if (!s || s.role !== 'mom') { router.push('/'); return; }
     const text = chatInput.trim();
     if (!text || aiTyping) return;
     setMessages(prev => [...prev, { role: 'user', text }]);
@@ -215,15 +263,27 @@ export default function MomDashboard() {
   }
 
   function handleLogout() {
+    const confirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất không?");
+    if (!confirmed) return;
+
     localStorage.removeItem('patient_code');
     localStorage.removeItem('role');
     localStorage.removeItem('email');
+    localStorage.removeItem('auth_session');
+    
+    localStorage.setItem('auth_event', JSON.stringify({
+      type: 'logout',
+      at: Date.now()
+    }));
+    
     router.push('/');
   }
 
   /* ── todo handlers ── */
   async function handleAddTodo(e) {
     e.preventDefault();
+    const s = getCurrentSession();
+    if (!s || s.role !== 'mom') { router.push('/'); return; }
     if (!todoTitle.trim()) return;
     setTodoSaving(true); setTodoMsg('');
     try {
@@ -242,6 +302,8 @@ export default function MomDashboard() {
   }
 
   async function handleToggleTodo(todo) {
+    const s = getCurrentSession();
+    if (!s || s.role !== 'mom') { router.push('/'); return; }
     if (todo.completed) return;
     try {
       const res = await fetch('/api/todos', {
@@ -257,6 +319,8 @@ export default function MomDashboard() {
   }
 
   async function handleDeleteTodo(todo) {
+    const s = getCurrentSession();
+    if (!s || s.role !== 'mom') { router.push('/'); return; }
     if (!window.confirm('Bạn có chắc chắn muốn xóa việc này không?')) return;
     try {
       const res = await fetch('/api/todos', {
@@ -273,6 +337,8 @@ export default function MomDashboard() {
   }
 
   async function handleSaveEditTodo() {
+    const s = getCurrentSession();
+    if (!s || s.role !== 'mom') { router.push('/'); return; }
     if (!etTitle.trim()) return;
     setEtSaving(true);
     try {
@@ -318,15 +384,15 @@ export default function MomDashboard() {
         <div className="card full-width">
           <div className="stat-row" style={{ paddingTop: '1.5rem' }}>
             <div className="stat-box">
-              <div className="stat-label">Tuần thai hiện tại</div>
+              <div className="stat-label">Tuần thai</div>
               <div className="stat-value">{maxWeek > 0 ? maxWeek : '—'} <span className="stat-unit">tuần</span></div>
             </div>
             <div className="stat-box">
-              <div className="stat-label">Cân nặng gần nhất</div>
+              <div className="stat-label">Cân nặng</div>
               <div className="stat-value">{records.length > 0 ? records[records.length - 1].weight ?? '—' : '—'} <span className="stat-unit">kg</span></div>
             </div>
             <div className="stat-box">
-              <div className="stat-label">Huyết áp gần nhất</div>
+              <div className="stat-label">Huyết áp</div>
               <div className="stat-value">{records.length > 0 ? records[records.length - 1].blood_pressure ?? '—' : '—'}</div>
             </div>
             <div className="stat-box">
@@ -334,13 +400,82 @@ export default function MomDashboard() {
               <div className="stat-value">{todos.filter(t => !t.completed).length} <span className="stat-unit">việc</span></div>
             </div>
             <div className="stat-box">
-              <div className="stat-label">Lịch khám sắp tới</div>
+              <div className="stat-label">Lịch khám</div>
               <div className="stat-value">{appointments.length} <span className="stat-unit">lịch</span></div>
             </div>
           </div>
         </div>
 
-        {/* ── LEFT: History table ── */}
+        {/* ── Nhập liệu mới ── */}
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <div className="card-title">Nhập liệu mới</div>
+              <div className="card-subtitle">{loading ? '…' : `Tiếp theo: Tuần ${nextWeek}`}</div>
+            </div>
+            <span style={{ fontSize: '1.5rem' }}>🩺</span>
+          </div>
+          <div className="form-body">
+            <form className="form" onSubmit={handleSubmit}>
+              <div className="field">
+                <label>Tuần thai</label>
+                <div className="input-wrap">
+                  <input type="number" value={loading ? '' : nextWeek} disabled readOnly placeholder="Đang tải…" />
+                  <span className="lock-icon">🔒</span>
+                </div>
+                <span className="hint">Tự động tính từ lần nhập trước</span>
+              </div>
+              <div className="form-row">
+                <div className="field">
+                  <label>Cân nặng (kg)</label>
+                  <input type="number" step="0.1" min="30" max="200" placeholder="VD: 56.5"
+                    value={weight} onChange={e => setWeight(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Huyết áp</label>
+                  <input type="text" placeholder="VD: 110/70"
+                    value={bloodPressure} onChange={e => setBloodPressure(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Tâm trạng</label>
+                  <select value={mood} onChange={e => setMood(e.target.value)}>
+                    <option value="">- Chọn tâm trạng -</option>
+                    <option value="Tốt">Tốt</option>
+                    <option value="Bình thường">Bình thường</option>
+                    <option value="Lo lắng">Lo lắng</option>
+                    <option value="Mệt mỏi">Mệt mỏi</option>
+                    <option value="Buồn">Buồn</option>
+                    <option value="Căng thẳng">Căng thẳng</option>
+                  </select>
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Thai máy</label>
+                  <select value={fetalMovement} onChange={e => setFetalMovement(e.target.value)}>
+                    <option value="">- Chọn trạng thái -</option>
+                    <option value="Chưa cảm nhận">Chưa cảm nhận</option>
+                    <option value="Bình thường">Bình thường</option>
+                    <option value="Ít hơn mọi ngày">Ít hơn mọi ngày</option>
+                    <option value="Nhiều hơn mọi ngày">Nhiều hơn mọi ngày</option>
+                  </select>
+                </div>
+              </div>
+              <div className="field">
+                <label>Ghi chú</label>
+                <textarea placeholder="VD: Buồn nôn nhẹ, mệt mỏi…"
+                  value={symptoms} onChange={e => setSymptoms(e.target.value)} />
+              </div>
+              {formError   && <p className="msg msg-error">{formError}</p>}
+              {formSuccess && <p className="msg msg-success">{formSuccess}</p>}
+              <button type="submit" className="btn-submit" disabled={submitting || loading}>
+                {submitting ? '⏳ Đang lưu…' : `💾 Lưu tuần ${loading ? '…' : nextWeek}`}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* ── Lịch sử thai kỳ ── */}
         <div className="card">
           <div className="card-header">
             <div>
@@ -356,13 +491,13 @@ export default function MomDashboard() {
             <table>
               <thead>
                 <tr>
-                  <th>Tuần</th>
-                  <th>Cân nặng</th>
-                  <th>Huyết áp</th>
-                  <th>Ghi chú</th>
-                  <th>Tâm trạng</th>
-                  <th>Thai máy</th>
-                  <th style={{ textAlign: 'center' }}>Thao tác</th>
+                  <th className="col-week">Tuần</th>
+                  <th className="col-weight">Cân nặng</th>
+                  <th className="col-bp">Huyết áp</th>
+                  <th className="col-mood">Tâm trạng</th>
+                  <th className="col-fetal">Thai máy</th>
+                  <th className="col-note">Ghi chú</th>
+                  <th className="col-act" style={{ textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -393,18 +528,18 @@ export default function MomDashboard() {
                         <td>{r.weight ?? <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}</td>
                         <td>{r.blood_pressure ?? <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}</td>
                         <td>
-                          {r.symptoms
-                            ? <span className="symptom-tag" title={r.symptoms}>{r.symptoms}</span>
-                            : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}
-                        </td>
-                        <td>
                           {r.mood
-                            ? <span className="symptom-tag" title={r.mood}>{r.mood}</span>
+                            ? <span className="badge-tag" title={r.mood}>{r.mood}</span>
                             : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}
                         </td>
                         <td>
                           {r.fetal_movement
-                            ? <span className="symptom-tag" title={r.fetal_movement}>{r.fetal_movement}</span>
+                            ? <span className="badge-tag" title={r.fetal_movement}>{r.fetal_movement}</span>
+                            : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}
+                        </td>
+                        <td>
+                          {r.symptoms
+                            ? <div className="text-clamp" title={r.symptoms}>{r.symptoms}</div>
                             : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}
                         </td>
                         <td>
@@ -438,71 +573,6 @@ export default function MomDashboard() {
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* ── RIGHT: Input form ── */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Nhập liệu mới</div>
-              <div className="card-subtitle">{loading ? '…' : `Tiếp theo: Tuần ${nextWeek}`}</div>
-            </div>
-            <span style={{ fontSize: '1.5rem' }}>🩺</span>
-          </div>
-          <div className="form-body">
-            <form className="form" onSubmit={handleSubmit}>
-              <div className="field">
-                <label>Tuần thai</label>
-                <div className="input-wrap">
-                  <input type="number" value={loading ? '' : nextWeek} disabled readOnly placeholder="Đang tải…" />
-                  <span className="lock-icon">🔒</span>
-                </div>
-                <span className="hint">Tự động tính từ lần nhập trước</span>
-              </div>
-              <div className="field">
-                <label>Cân nặng (kg)</label>
-                <input type="number" step="0.1" min="30" max="200" placeholder="VD: 56.5"
-                  value={weight} onChange={e => setWeight(e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Huyết áp</label>
-                <input type="text" placeholder="VD: 110/70"
-                  value={bloodPressure} onChange={e => setBloodPressure(e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Ghi chú</label>
-                <textarea placeholder="VD: Buồn nôn nhẹ, mệt mỏi…"
-                  value={symptoms} onChange={e => setSymptoms(e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Tâm trạng</label>
-                <select value={mood} onChange={e => setMood(e.target.value)}>
-                  <option value="">- Chọn tâm trạng -</option>
-                  <option value="Tốt">Tốt</option>
-                  <option value="Bình thường">Bình thường</option>
-                  <option value="Lo lắng">Lo lắng</option>
-                  <option value="Mệt mỏi">Mệt mỏi</option>
-                  <option value="Buồn">Buồn</option>
-                  <option value="Căng thẳng">Căng thẳng</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Thai máy</label>
-                <select value={fetalMovement} onChange={e => setFetalMovement(e.target.value)}>
-                  <option value="">- Chọn trạng thái -</option>
-                  <option value="Chưa cảm nhận">Chưa cảm nhận</option>
-                  <option value="Bình thường">Bình thường</option>
-                  <option value="Ít hơn mọi ngày">Ít hơn mọi ngày</option>
-                  <option value="Nhiều hơn mọi ngày">Nhiều hơn mọi ngày</option>
-                </select>
-              </div>
-              {formError   && <p className="msg msg-error">{formError}</p>}
-              {formSuccess && <p className="msg msg-success">{formSuccess}</p>}
-              <button type="submit" className="btn-submit" disabled={submitting || loading}>
-                {submitting ? '⏳ Đang lưu…' : `💾 Lưu tuần ${loading ? '…' : nextWeek}`}
-              </button>
-            </form>
           </div>
         </div>
 

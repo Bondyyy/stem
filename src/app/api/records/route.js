@@ -38,34 +38,46 @@ export async function POST(request) {
 
     const db = await getDb();
 
-    const row = await db.get(
-      `SELECT MAX(week) AS max_week FROM records WHERE patient_code = ?`,
-      patient_code
-    );
+    try {
+      await db.exec('BEGIN TRANSACTION');
 
-    const maxWeek = row?.max_week;
-    const expected = maxWeek === null || maxWeek === undefined ? 1 : maxWeek + 1;
-
-    if (week !== expected) {
-      return NextResponse.json(
-        { error: 'Vui lòng nhập đúng thứ tự tuần.', expected_week: expected, received_week: week },
-        { status: 400 }
+      const row = await db.get(
+        `SELECT MAX(week) AS max_week FROM records WHERE patient_code = ?`,
+        patient_code
       );
+
+      const maxWeek = row?.max_week;
+      const expected = maxWeek === null || maxWeek === undefined ? 1 : maxWeek + 1;
+
+      if (week !== expected) {
+        await db.exec('ROLLBACK');
+        return NextResponse.json(
+          { error: 'Vui lòng nhập đúng thứ tự tuần.', expected_week: expected, received_week: week },
+          { status: 400 }
+        );
+      }
+
+      const result = await db.run(
+        `INSERT INTO records (patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        patient_code, week, weight ?? null, blood_pressure ?? null, symptoms ?? null, mood ?? null, fetal_movement ?? null
+      );
+
+      const newRecord = await db.get(
+        `SELECT id, patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement FROM records WHERE id = ?`,
+        result.lastID
+      );
+
+      await db.exec('COMMIT');
+      return NextResponse.json({ message: 'Lưu thành công.', record: newRecord }, { status: 201 });
+    } catch (err) {
+      await db.exec('ROLLBACK');
+      throw err;
     }
-
-    const result = await db.run(
-      `INSERT INTO records (patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      patient_code, week, weight ?? null, blood_pressure ?? null, symptoms ?? null, mood ?? null, fetal_movement ?? null
-    );
-
-    const newRecord = await db.get(
-      `SELECT id, patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement FROM records WHERE id = ?`,
-      result.lastID
-    );
-
-    return NextResponse.json({ message: 'Lưu thành công.', record: newRecord }, { status: 201 });
   } catch (err) {
+    if (err.code === 'SQLITE_CONSTRAINT') {
+      return NextResponse.json({ error: 'Dữ liệu tuần này đã tồn tại hoặc vừa được thêm. Vui lòng tải lại.' }, { status: 409 });
+    }
     console.error('[POST /api/records]', err);
     return NextResponse.json({ error: 'Lỗi server nội bộ.' }, { status: 500 });
   }

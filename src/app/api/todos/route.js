@@ -32,7 +32,7 @@ export async function POST(request) {
   try {
     const { patient_code, title, task_time, task_date } = await request.json();
 
-    if (!patient_code || !title) {
+    if (!patient_code || !title || title.trim() === '') {
       return NextResponse.json({ error: 'Thiếu patient_code hoặc tên việc.' }, { status: 400 });
     }
 
@@ -95,6 +95,10 @@ export async function DELETE(request) {
     }
 
     const db = await getDb();
+    const existing = await db.get(`SELECT id FROM todos WHERE id = ?`, id);
+    if (!existing) {
+      return NextResponse.json({ message: 'Đã xóa việc cần làm.' }, { status: 200 }); // Graceful handle
+    }
     await db.run(`DELETE FROM todos WHERE id = ?`, id);
     return NextResponse.json({ message: 'Đã xóa việc cần làm.' }, { status: 200 });
   } catch (err) {
