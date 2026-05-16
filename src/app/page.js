@@ -2,7 +2,7 @@
 
 // src/app/page.js
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { css } from './auth-styles';
 
@@ -24,6 +24,14 @@ export default function HomePage() {
   const [otpLoading,    setOtpLoading]    = useState(false);
   const [otpError,      setOtpError]      = useState('');
   const [otpSuccess,    setOtpSuccess]    = useState('');
+  const [otpCooldown,   setOtpCooldown]   = useState(0);
+
+  useEffect(() => {
+    if (otpCooldown > 0) {
+      const timer = setInterval(() => setOtpCooldown(prev => prev - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [otpCooldown]);
 
   function selectRole(r) {
     setRole(r); setMode('login');
@@ -51,9 +59,14 @@ export default function HomePage() {
         body: JSON.stringify({ action: 'send', email }),
       });
       const data = await res.json();
-      if (!res.ok) { setOtpError(data.error || 'Không thể gửi OTP.'); return; }
+      if (!res.ok) {
+        setOtpError(data.error || 'Không thể gửi OTP.');
+        if (data.retry_after) setOtpCooldown(data.retry_after);
+        return;
+      }
       setOtpSent(true);
       setOtpVerified(false);
+      setOtpCooldown(60);
       setOtpSuccess('Đã gửi mã OTP đến email của bạn. Kiểm tra hộp thư (kể cả Spam).');
     } catch {
       setOtpError('Không thể kết nối máy chủ.');
@@ -305,9 +318,9 @@ export default function HomePage() {
                         type="button"
                         className={`btn-otp${isDoc ? ' doc' : ''}`}
                         onClick={handleSendOtp}
-                        disabled={otpLoading || !email}
+                        disabled={otpLoading || !email || otpCooldown > 0}
                       >
-                        {otpLoading ? '⏳' : otpSent ? 'Gửi lại mã' : 'Nhận mã OTP'}
+                        {otpLoading ? 'Đang gửi...' : otpCooldown > 0 ? `Gửi lại sau ${otpCooldown}s` : otpSent ? 'Gửi lại mã' : 'Nhận mã OTP'}
                       </button>
                     </div>
                     {otpError   && <p className="hint" style={{ color: '#b94040' }}>{otpError}</p>}

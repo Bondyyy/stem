@@ -9,8 +9,7 @@ import { Resend } from 'resend';
 import bcrypt from 'bcryptjs';
 
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 phút
-const RATE_LIMIT_MS = 10 * 60 * 1000; // 10 phút
-const MAX_REQUESTS = 3;
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 60 giây
 
 function generateOtp() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -38,17 +37,23 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Email đã được sử dụng.' }, { status: 409 });
       }
 
-      // 2. Check rate limit
+      // 2. Check cooldown
       const ip = request.headers.get('x-forwarded-for') || 'unknown';
-      const tenMinsAgo = Math.floor((Date.now() - RATE_LIMIT_MS) / 1000);
 
-      const requestsCount = await db.get(
-        `SELECT COUNT(id) as count FROM otp_requests WHERE (email = ? OR ip = ?) AND created_at > ?`,
-        email, ip, tenMinsAgo
+      const lastRequest = await db.get(
+        `SELECT created_at FROM otp_requests WHERE email = ? OR ip = ? ORDER BY created_at DESC LIMIT 1`,
+        email, ip
       );
 
-      if (requestsCount && requestsCount.count >= MAX_REQUESTS) {
-        return NextResponse.json({ error: 'Bạn gửi mã quá nhiều lần. Vui lòng thử lại sau.' }, { status: 429 });
+      if (lastRequest) {
+        const timePassedMs = Date.now() - (lastRequest.created_at * 1000);
+        if (timePassedMs < OTP_RESEND_COOLDOWN_MS) {
+          const retryAfter = Math.ceil((OTP_RESEND_COOLDOWN_MS - timePassedMs) / 1000);
+          return NextResponse.json({
+            error: `Vui lòng chờ ${retryAfter} giây trước khi gửi lại mã OTP.`,
+            retry_after: retryAfter
+          }, { status: 429 });
+        }
       }
 
       // Log the request
