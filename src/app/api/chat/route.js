@@ -1,6 +1,9 @@
 // src/app/api/chat/route.js
 
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(request) {

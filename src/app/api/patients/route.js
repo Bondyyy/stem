@@ -1,6 +1,9 @@
 // src/app/api/patients/route.js
 
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 import { getDb } from '@/lib/db';
 
 // GET /api/patients?doctor_email=xxx

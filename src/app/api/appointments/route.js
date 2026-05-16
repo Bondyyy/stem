@@ -1,6 +1,9 @@
 // src/app/api/appointments/route.js
 
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 import { getDb } from '@/lib/db';
 
 // GET /api/appointments?patient_code=BNxxxx  hoặc  ?doctor_email=xxx

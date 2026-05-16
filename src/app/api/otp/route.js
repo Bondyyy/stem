@@ -1,6 +1,9 @@
 // src/app/api/otp/route.js
 
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 import { getDb } from '@/lib/db';
 import nodemailer from 'nodemailer';
 import bcrypt from 'bcryptjs';

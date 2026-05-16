@@ -1,6 +1,9 @@
 // src/app/api/records/route.js
 
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 import { getDb } from '@/lib/db';
 
 // ── GET /api/records?patient_code=BN1234 ──────────────────────────────
