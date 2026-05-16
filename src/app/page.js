@@ -5,10 +5,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-/* ─────────────────────────────────────────────
-   Inline Google Fonts  (Playfair Display + DM Sans)
-   injected once via a <style> tag
-───────────────────────────────────────────── */
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap');
 
@@ -66,7 +62,7 @@ body::after {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   padding: 2.8rem 2.6rem 2.4rem;
   animation: rise .55s cubic-bezier(.22,.68,0,1.2) both;
 }
@@ -90,7 +86,7 @@ body::after {
   font-family: 'DM Sans', sans-serif;
 }
 .role-btn:hover { border-color: var(--rose); transform: translateY(-2px); }
-.role-btn.active-mom  { border-color: var(--rose-dk); background: #f9e4e4; box-shadow: 0 0 0 4px rgba(201,112,112,.15); }
+.role-btn.active-mom  { border-color: #c97070; background: #f9e4e4; box-shadow: 0 0 0 4px rgba(201,112,112,.15); }
 .role-btn.active-doc  { border-color: var(--sage-dk); background: #e4f0e8; box-shadow: 0 0 0 4px rgba(94,136,112,.15); }
 .role-btn .icon  { font-size: 1.8rem; }
 .role-btn .label { font-size: .82rem; font-weight: 500; color: var(--ink); text-align: center; line-height: 1.3; }
@@ -109,7 +105,7 @@ body::after {
   font-family: 'DM Sans', sans-serif; font-size: .85rem; font-weight: 500;
   color: var(--muted); cursor: pointer; transition: all .18s;
 }
-.tab-btn.active-mom { background: var(--rose-dk); color: #fff; }
+.tab-btn.active-mom { background: #c97070; color: #fff; }
 .tab-btn.active-doc { background: var(--sage-dk); color: #fff; }
 .tab-btn:not(.active-mom):not(.active-doc):hover { color: var(--ink); }
 
@@ -123,10 +119,26 @@ input {
   background: var(--blush);
   font-family: 'DM Sans', sans-serif; font-size: .95rem; color: var(--ink);
   outline: none; transition: border-color .18s, box-shadow .18s;
+  width: 100%;
 }
 input::placeholder { color: #c5ada7; }
-input:focus { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(201,112,112,.15); }
+input:focus { border-color: #c97070; box-shadow: 0 0 0 3px rgba(201,112,112,.15); }
 .doc input:focus { border-color: var(--sage-dk); box-shadow: 0 0 0 3px rgba(94,136,112,.15); }
+
+.otp-row { display: flex; gap: .5rem; align-items: stretch; }
+.otp-row input { flex: 1; }
+.btn-otp {
+  padding: .7rem 1rem; border-radius: .65rem; border: 1.5px solid #c97070;
+  background: #fff; color: #c97070;
+  font-family: 'DM Sans', sans-serif; font-size: .82rem; font-weight: 500;
+  cursor: pointer; transition: all .18s; white-space: nowrap; flex-shrink: 0;
+}
+.btn-otp:hover:not(:disabled) { background: #c97070; color: #fff; }
+.btn-otp:disabled { opacity: .5; cursor: not-allowed; }
+.btn-otp.doc { border-color: var(--sage-dk); color: var(--sage-dk); }
+.btn-otp.doc:hover:not(:disabled) { background: var(--sage-dk); color: #fff; }
+.otp-hint { font-size: .74rem; color: var(--muted); margin-top: -.3rem; }
+.otp-success-hint { font-size: .74rem; color: var(--sage-dk); margin-top: -.3rem; }
 
 .btn-submit {
   margin-top: .4rem; padding: .85rem;
@@ -134,7 +146,7 @@ input:focus { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(201,112,112,
   font-family: 'DM Sans', sans-serif; font-size: .95rem; font-weight: 500;
   cursor: pointer; transition: all .18s; letter-spacing: .01em;
 }
-.btn-submit.mom { background: var(--rose-dk); color: #fff; }
+.btn-submit.mom { background: #c97070; color: #fff; }
 .btn-submit.mom:hover { background: #b85c5c; transform: translateY(-1px); }
 .btn-submit.doc { background: var(--sage-dk); color: #fff; }
 .btn-submit.doc:hover { background: #4a7060; transform: translateY(-1px); }
@@ -157,12 +169,48 @@ export default function HomePage() {
   const [error,    setError]    = useState('');
   const [success,  setSuccess]  = useState('');
 
+  // OTP states
+  const [otpCode,       setOtpCode]       = useState('');
+  const [otpSent,       setOtpSent]       = useState(false);
+  const [otpVerified,   setOtpVerified]   = useState(false);
+  const [otpLoading,    setOtpLoading]    = useState(false);
+  const [otpError,      setOtpError]      = useState('');
+  const [otpSuccess,    setOtpSuccess]    = useState('');
+
   function selectRole(r) {
     setRole(r); setMode('login');
-    setEmail(''); setPassword(''); setError(''); setSuccess('');
+    resetForm();
   }
   function selectMode(m) {
-    setMode(m); setError(''); setSuccess('');
+    setMode(m);
+    resetForm();
+  }
+  function resetForm() {
+    setEmail(''); setPassword(''); setError(''); setSuccess('');
+    setOtpCode(''); setOtpSent(false); setOtpVerified(false);
+    setOtpError(''); setOtpSuccess('');
+  }
+
+  // Gửi OTP
+  async function handleSendOtp() {
+    if (!email) { setOtpError('Vui lòng nhập email trước.'); return; }
+    setOtpLoading(true); setOtpError(''); setOtpSuccess('');
+    try {
+      const res  = await fetch('/api/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send', email }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setOtpError(data.error || 'Không thể gửi OTP.'); return; }
+      setOtpSent(true);
+      setOtpVerified(false);
+      setOtpSuccess('Đã gửi mã OTP đến email của bạn. Kiểm tra hộp thư (kể cả Spam).');
+    } catch {
+      setOtpError('Không thể kết nối máy chủ.');
+    } finally {
+      setOtpLoading(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -170,10 +218,15 @@ export default function HomePage() {
     setError(''); setSuccess(''); setLoading(true);
 
     try {
-      const res = await fetch('/api/auth', {
+      const body = { action: mode, email, password, role };
+      if (mode === 'register') {
+        body.otp_code = otpCode;
+      }
+
+      const res  = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: mode, email, password, role }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
 
@@ -184,7 +237,8 @@ export default function HomePage() {
 
       const { user } = data;
       if (typeof window !== 'undefined') {
-        localStorage.setItem('role', user.role);
+        localStorage.setItem('role',         user.role);
+        localStorage.setItem('email',        user.email);
         if (user.patient_code) localStorage.setItem('patient_code', user.patient_code);
       }
 
@@ -277,6 +331,35 @@ export default function HomePage() {
                   onChange={e => setPassword(e.target.value)}
                 />
               </label>
+
+              {/* OTP section – chỉ hiện khi đăng ký */}
+              {mode === 'register' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.35rem' }}>
+                    <label style={{ marginBottom: 0 }}>Xác thực Email</label>
+                    <div className="otp-row">
+                      <input
+                        type="text"
+                        placeholder="Nhập mã OTP 6 số"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={e => { setOtpCode(e.target.value); setOtpError(''); }}
+                        style={{ letterSpacing: '.2rem', fontWeight: 600 }}
+                      />
+                      <button
+                        type="button"
+                        className={`btn-otp${isDoc ? ' doc' : ''}`}
+                        onClick={handleSendOtp}
+                        disabled={otpLoading || !email}
+                      >
+                        {otpLoading ? '⏳' : otpSent ? 'Gửi lại' : 'Gửi mã OTP'}
+                      </button>
+                    </div>
+                    {otpError   && <span className="otp-hint" style={{ color: '#b94040' }}>{otpError}</span>}
+                    {otpSuccess  && <span className="otp-success-hint">{otpSuccess}</span>}
+                  </div>
+                </>
+              )}
 
               {error   && <p className="msg-error">{error}</p>}
               {success && <p className="msg-success">{success}</p>}
