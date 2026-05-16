@@ -1,3 +1,2 @@
 [variables]
 npm_config_build_from_source = "true"
-RAILPACK_BUILD_APT_PACKAGES = "python3 make g++"
