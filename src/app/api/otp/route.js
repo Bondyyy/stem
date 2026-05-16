@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 import { getDb } from '@/lib/db';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import bcrypt from 'bcryptjs';
 
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 phút
@@ -16,15 +16,6 @@ function generateOtp() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS,
-    },
-  });
-}
 
 export async function POST(request) {
   try {
@@ -35,9 +26,9 @@ export async function POST(request) {
     }
 
     const db = await getDb();
-    
+
     // Ensure table has otp_hash just in case
-    try { await db.exec('ALTER TABLE otp_verifications ADD COLUMN otp_hash TEXT'); } catch(e) {}
+    try { await db.exec('ALTER TABLE otp_verifications ADD COLUMN otp_hash TEXT'); } catch (e) { }
 
     /* ─── SEND OTP ───────────────────────────────────────────────────── */
     if (action === 'send') {
@@ -50,7 +41,7 @@ export async function POST(request) {
       // 2. Check rate limit
       const ip = request.headers.get('x-forwarded-for') || 'unknown';
       const tenMinsAgo = Math.floor((Date.now() - RATE_LIMIT_MS) / 1000);
-      
+
       const requestsCount = await db.get(
         `SELECT COUNT(id) as count FROM otp_requests WHERE (email = ? OR ip = ?) AND created_at > ?`,
         email, ip, tenMinsAgo
@@ -83,9 +74,16 @@ export async function POST(request) {
       );
 
       // Gửi email
-      const transporter = createTransporter();
-      await transporter.sendMail({
-        from: `"MamaTrack 🌸" <${process.env.GMAIL_USER}>`,
+      if (!process.env.RESEND_API_KEY) {
+        return NextResponse.json(
+          { error: 'Thiếu cấu hình gửi email trên server.' },
+          { status: 500 }
+        );
+      }
+
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: 'MamaTrack <onboarding@resend.dev>',
         to: email,
         subject: 'Mã OTP xác thực MamaTrack',
         html: `
@@ -149,11 +147,7 @@ export async function POST(request) {
       name: err?.name,
       message: err?.message,
       code: err?.code,
-      command: err?.command,
-      response: err?.response,
-      responseCode: err?.responseCode,
-      hasGmailUser: Boolean(process.env.GMAIL_USER),
-      hasGmailPass: Boolean(process.env.GMAIL_PASS),
+      hasResendKey: Boolean(process.env.RESEND_API_KEY),
     });
     return NextResponse.json({ error: 'Lỗi server nội bộ.' }, { status: 500 });
   }
