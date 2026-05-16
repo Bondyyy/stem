@@ -145,7 +145,16 @@ export async function POST(request) {
 
     return NextResponse.json({ error: 'Action không hợp lệ.' }, { status: 400 });
   } catch (err) {
-    console.error('[/api/otp] Server error'); // Removed logging full err to prevent exposing otp/db info
+    console.error('[/api/otp] Server error:', {
+      name: err?.name,
+      message: err?.message,
+      code: err?.code,
+      command: err?.command,
+      response: err?.response,
+      responseCode: err?.responseCode,
+      hasGmailUser: Boolean(process.env.GMAIL_USER),
+      hasGmailPass: Boolean(process.env.GMAIL_PASS),
+    });
     return NextResponse.json({ error: 'Lỗi server nội bộ.' }, { status: 500 });
   }
 }
