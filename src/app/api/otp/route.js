@@ -5,7 +5,6 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 import { getDb } from '@/lib/db';
-import { Resend } from 'resend';
 import bcrypt from 'bcryptjs';
 
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 phút
@@ -78,32 +77,52 @@ export async function POST(request) {
         email, otpHash, expiredAt
       );
 
-      // Gửi email
-      if (!process.env.RESEND_API_KEY) {
+      // Gửi email qua Google Apps Script Web App
+      if (!process.env.GOOGLE_SCRIPT_URL || !process.env.MAIL_SECRET) {
         return NextResponse.json(
           { error: 'Thiếu cấu hình gửi email trên server.' },
           { status: 500 }
         );
       }
 
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: 'MamaTrack <onboarding@resend.dev>',
-        to: email,
-        subject: 'Mã OTP xác thực MamaTrack',
-        html: `
-          <div style="font-family:'DM Sans',sans-serif;max-width:480px;margin:0 auto;padding:2rem;background:#fdf6f0;border-radius:1rem;">
-            <h2 style="color:#c97070;font-family:serif;">🌸 MamaTrack</h2>
-            <p style="color:#2d2420;font-size:1rem;">Mã OTP xác thực tài khoản của bạn là:</p>
-            <div style="font-size:2.5rem;font-weight:700;letter-spacing:.4rem;color:#c97070;text-align:center;padding:1rem;background:#fff;border-radius:.75rem;margin:1rem 0;border:2px solid #e8a0a0;">
-              ${otp}
-            </div>
-            <p style="color:#8a7570;font-size:.85rem;">Mã có hiệu lực trong <strong>5 phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
-            <hr style="border:none;border-top:1px solid #ecdbd5;margin:1.5rem 0;">
-            <p style="color:#c5ada7;font-size:.78rem;text-align:center;">Đây là email tự động từ MamaTrack. Vui lòng không trả lời email này.</p>
+      const html = `
+        <div style="font-family:'DM Sans',sans-serif;max-width:480px;margin:0 auto;padding:2rem;background:#fdf6f0;border-radius:1rem;">
+          <h2 style="color:#c97070;font-family:serif;">🌸 MamaTrack</h2>
+          <p style="color:#2d2420;font-size:1rem;">Mã OTP xác thực tài khoản của bạn là:</p>
+          <div style="font-size:2.5rem;font-weight:700;letter-spacing:.4rem;color:#c97070;text-align:center;padding:1rem;background:#fff;border-radius:.75rem;margin:1rem 0;border:2px solid #e8a0a0;">
+            ${otp}
           </div>
-        `,
+          <p style="color:#8a7570;font-size:.85rem;">Mã có hiệu lực trong <strong>5 phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
+          <hr style="border:none;border-top:1px solid #ecdbd5;margin:1.5rem 0;">
+          <p style="color:#c5ada7;font-size:.78rem;text-align:center;">Đây là email tự động từ MamaTrack. Vui lòng không trả lời email này.</p>
+        </div>
+      `;
+
+      const mailRes = await fetch(process.env.GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: process.env.MAIL_SECRET,
+          to: email,
+          subject: 'Mã OTP xác thực MamaTrack',
+          otp,
+          html
+        })
       });
+
+      const mailData = await mailRes.json();
+
+      if (!mailRes.ok || !mailData.ok) {
+        console.error('[Google Script Mail Error]', {
+          status: mailRes.status,
+          error: mailData?.error
+        });
+      
+        return NextResponse.json(
+          { error: 'Không thể gửi email OTP. Vui lòng thử lại sau.' },
+          { status: 500 }
+        );
+      }
 
       return NextResponse.json({ message: 'Đã gửi mã OTP đến email của bạn.' }, { status: 200 });
     }
@@ -152,7 +171,8 @@ export async function POST(request) {
       name: err?.name,
       message: err?.message,
       code: err?.code,
-      hasResendKey: Boolean(process.env.RESEND_API_KEY),
+      hasGoogleScriptUrl: Boolean(process.env.GOOGLE_SCRIPT_URL),
+      hasMailSecret: Boolean(process.env.MAIL_SECRET),
     });
     return NextResponse.json({ error: 'Lỗi server nội bộ.' }, { status: 500 });
   }
