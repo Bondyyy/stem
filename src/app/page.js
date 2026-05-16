@@ -4,159 +4,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-const css = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --rose:    #e8a0a0;
-  --rose-dk: #c97070;
-  --blush:   #f7ede8;
-  --cream:   #fdf6f0;
-  --sage:    #8fac9a;
-  --sage-dk: #5e8870;
-  --ink:     #2d2420;
-  --muted:   #8a7570;
-  --white:   #ffffff;
-  --radius:  1.25rem;
-  --shadow:  0 8px 40px rgba(0,0,0,.10);
-}
-
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--cream);
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-  position: relative;
-  overflow-x: hidden;
-}
-
-body::before, body::after {
-  content: '';
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: .45;
-  pointer-events: none;
-  z-index: 0;
-}
-body::before {
-  width: 420px; height: 420px;
-  background: radial-gradient(circle, #f0c4c4, transparent 70%);
-  top: -100px; left: -120px;
-}
-body::after {
-  width: 360px; height: 360px;
-  background: radial-gradient(circle, #c4d9cb, transparent 70%);
-  bottom: -80px; right: -80px;
-}
-
-.card {
-  position: relative; z-index: 1;
-  background: var(--white);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  width: 100%;
-  max-width: 480px;
-  padding: 2.8rem 2.6rem 2.4rem;
-  animation: rise .55s cubic-bezier(.22,.68,0,1.2) both;
-}
-
-@keyframes rise {
-  from { opacity: 0; transform: translateY(28px) scale(.97); }
-  to   { opacity: 1; transform: none; }
-}
-
-.brand { text-align: center; margin-bottom: 2.2rem; }
-.brand-icon { font-size: 2.4rem; line-height: 1; margin-bottom: .4rem; display: block; }
-.brand h1 { font-family: 'Playfair Display', serif; font-size: 1.75rem; color: var(--ink); letter-spacing: -.01em; }
-.brand p { font-size: .85rem; color: var(--muted); margin-top: .3rem; font-weight: 300; }
-
-.roles { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; margin-bottom: 2rem; }
-.role-btn {
-  display: flex; flex-direction: column; align-items: center;
-  gap: .45rem; padding: 1.2rem .75rem;
-  border-radius: .9rem; border: 2px solid #ecdbd5;
-  background: var(--blush); cursor: pointer; transition: all .2s;
-  font-family: 'DM Sans', sans-serif;
-}
-.role-btn:hover { border-color: var(--rose); transform: translateY(-2px); }
-.role-btn.active-mom  { border-color: #c97070; background: #f9e4e4; box-shadow: 0 0 0 4px rgba(201,112,112,.15); }
-.role-btn.active-doc  { border-color: var(--sage-dk); background: #e4f0e8; box-shadow: 0 0 0 4px rgba(94,136,112,.15); }
-.role-btn .icon  { font-size: 1.8rem; }
-.role-btn .label { font-size: .82rem; font-weight: 500; color: var(--ink); text-align: center; line-height: 1.3; }
-
-.divider {
-  display: flex; align-items: center; gap: .75rem;
-  margin: 1.5rem 0 1.2rem;
-  font-size: .78rem; color: var(--muted);
-}
-.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #ecdbd5; }
-
-.tabs { display: flex; background: var(--blush); border-radius: .65rem; padding: .25rem; margin-bottom: 1.5rem; }
-.tab-btn {
-  flex: 1; padding: .5rem;
-  border: none; background: transparent; border-radius: .45rem;
-  font-family: 'DM Sans', sans-serif; font-size: .85rem; font-weight: 500;
-  color: var(--muted); cursor: pointer; transition: all .18s;
-}
-.tab-btn.active-mom { background: #c97070; color: #fff; }
-.tab-btn.active-doc { background: var(--sage-dk); color: #fff; }
-.tab-btn:not(.active-mom):not(.active-doc):hover { color: var(--ink); }
-
-.form { display: flex; flex-direction: column; gap: .9rem; }
-
-label { display: flex; flex-direction: column; gap: .35rem; font-size: .8rem; font-weight: 500; color: var(--muted); letter-spacing: .02em; text-transform: uppercase; }
-
-input {
-  padding: .7rem .95rem;
-  border-radius: .65rem; border: 1.5px solid #ecdbd5;
-  background: var(--blush);
-  font-family: 'DM Sans', sans-serif; font-size: .95rem; color: var(--ink);
-  outline: none; transition: border-color .18s, box-shadow .18s;
-  width: 100%;
-}
-input::placeholder { color: #c5ada7; }
-input:focus { border-color: #c97070; box-shadow: 0 0 0 3px rgba(201,112,112,.15); }
-.doc input:focus { border-color: var(--sage-dk); box-shadow: 0 0 0 3px rgba(94,136,112,.15); }
-
-.otp-row { display: flex; gap: .5rem; align-items: stretch; }
-.otp-row input { flex: 1; }
-.btn-otp {
-  padding: .7rem 1rem; border-radius: .65rem; border: 1.5px solid #c97070;
-  background: #fff; color: #c97070;
-  font-family: 'DM Sans', sans-serif; font-size: .82rem; font-weight: 500;
-  cursor: pointer; transition: all .18s; white-space: nowrap; flex-shrink: 0;
-}
-.btn-otp:hover:not(:disabled) { background: #c97070; color: #fff; }
-.btn-otp:disabled { opacity: .5; cursor: not-allowed; }
-.btn-otp.doc { border-color: var(--sage-dk); color: var(--sage-dk); }
-.btn-otp.doc:hover:not(:disabled) { background: var(--sage-dk); color: #fff; }
-.otp-hint { font-size: .74rem; color: var(--muted); margin-top: -.3rem; }
-.otp-success-hint { font-size: .74rem; color: var(--sage-dk); margin-top: -.3rem; }
-
-.btn-submit {
-  margin-top: .4rem; padding: .85rem;
-  border-radius: .75rem; border: none;
-  font-family: 'DM Sans', sans-serif; font-size: .95rem; font-weight: 500;
-  cursor: pointer; transition: all .18s; letter-spacing: .01em;
-}
-.btn-submit.mom { background: #c97070; color: #fff; }
-.btn-submit.mom:hover { background: #b85c5c; transform: translateY(-1px); }
-.btn-submit.doc { background: var(--sage-dk); color: #fff; }
-.btn-submit.doc:hover { background: #4a7060; transform: translateY(-1px); }
-.btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
-
-.msg-error { font-size: .83rem; color: #b94040; background: #fdeaea; border-radius: .5rem; padding: .6rem .85rem; border: 1px solid #f0c0c0; }
-.msg-success { font-size: .83rem; color: var(--sage-dk); background: #e8f5ec; border-radius: .5rem; padding: .6rem .85rem; border: 1px solid #b8dcc4; }
-
-.footer-note { margin-top: 1.6rem; text-align: center; font-size: .78rem; color: var(--muted); }
-`;
+import { css } from './auth-styles';
 
 export default function HomePage() {
   const router = useRouter();
@@ -180,6 +28,7 @@ export default function HomePage() {
   function selectRole(r) {
     setRole(r); setMode('login');
     resetForm();
+    document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' });
   }
   function selectMode(m) {
     setMode(m);
@@ -261,90 +110,185 @@ export default function HomePage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: css }} />
+      <div className="bg-blobs">
+        <div className="blob-1"></div>
+        <div className="blob-2"></div>
+      </div>
 
-      <div className="card">
-        <div className="brand">
-          <span className="brand-icon">🌸</span>
-          <h1>MamaTrack</h1>
-          <p>Đồng hành cùng hành trình thai kỳ của bạn</p>
-        </div>
-
-        <div className="roles">
-          <button
-            type="button"
-            className={`role-btn${isMom ? ' active-mom' : ''}`}
-            onClick={() => selectRole('mom')}
-          >
-            <span className="icon">🤰</span>
-            <span className="label">Tôi là<br />Bà bầu</span>
-          </button>
-          <button
-            type="button"
-            className={`role-btn${isDoc ? ' active-doc' : ''}`}
-            onClick={() => selectRole('doctor')}
-          >
-            <span className="icon">👨‍⚕️</span>
-            <span className="label">Tôi là<br />Bác sĩ</span>
+      <nav className="navbar">
+        <div className="nav-brand"><span>🌸</span> MamaTrack</div>
+        <div>
+          <button className="btn-secondary" onClick={() => { setRole('doctor'); setMode('login'); document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' }); }} style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem' }}>
+            Dành cho bác sĩ
           </button>
         </div>
+      </nav>
 
-        {role && (
-          <>
-            <div className="divider">
-              Tiếp tục với vai trò {isMom ? 'Bà bầu' : 'Bác sĩ'}
-            </div>
+      <section className="hero">
+        <h1>Đồng hành cùng mẹ trong từng tuần thai kỳ</h1>
+        <p>Theo dõi sức khỏe thai kỳ, ghi chú thay đổi cơ thể, quản lý việc cần làm và nhận lịch khám từ bác sĩ trong một nơi duy nhất.</p>
+        <div className="hero-btns">
+          <button className="btn-primary" onClick={() => selectRole('mom')}>
+            Bắt đầu ngay
+          </button>
+          <button className="btn-secondary" onClick={() => selectRole('doctor')}>
+            Dành cho bác sĩ
+          </button>
+        </div>
+      </section>
 
-            <div className="tabs">
-              <button
-                type="button"
-                className={`tab-btn${mode === 'login' ? ` active-${accentRole}` : ''}`}
-                onClick={() => selectMode('login')}
-              >
-                Đăng nhập
-              </button>
-              <button
-                type="button"
-                className={`tab-btn${mode === 'register' ? ` active-${accentRole}` : ''}`}
-                onClick={() => selectMode('register')}
-              >
-                Đăng ký
-              </button>
-            </div>
+      <section className="section" style={{ background: 'var(--white)' }}>
+        <h2 className="section-title">Dành cho Mẹ bầu</h2>
+        <p className="section-subtitle">Mọi công cụ bạn cần để có một thai kỳ khỏe mạnh và an tâm.</p>
+        <div className="feature-grid">
+          <div className="feature-card mom-card">
+            <span className="feature-icon">📈</span>
+            <h3 className="feature-title">Theo dõi thai kỳ</h3>
+            <p className="feature-desc">Ghi nhận chỉ số cân nặng, huyết áp, tâm trạng và thai máy mỗi tuần.</p>
+          </div>
+          <div className="feature-card mom-card">
+            <span className="feature-icon">📝</span>
+            <h3 className="feature-title">Việc cần làm</h3>
+            <p className="feature-desc">Lên danh sách chuẩn bị đồ sơ sinh, mua sắm và những việc quan trọng khác.</p>
+          </div>
+          <div className="feature-card mom-card">
+            <span className="feature-icon">🗓️</span>
+            <h3 className="feature-title">Lịch khám sắp tới</h3>
+            <p className="feature-desc">Nhận lịch siêu âm, khám định kỳ trực tiếp từ bác sĩ chuyên khoa.</p>
+          </div>
+          <div className="feature-card mom-card">
+            <span className="feature-icon">💬</span>
+            <h3 className="feature-title">Trợ lý AI đồng hành</h3>
+            <p className="feature-desc">Luôn có người bạn AI sẵn sàng giải đáp thắc mắc và tâm sự cùng mẹ.</p>
+          </div>
+        </div>
+      </section>
 
-            <form className={`form${isDoc ? ' doc' : ''}`} onSubmit={handleSubmit}>
-              <label>
-                Email
-                <input
-                  type="email" required
-                  placeholder="email@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
-              </label>
+      <section className="section" style={{ background: 'var(--sage-lt)' }}>
+        <h2 className="section-title" style={{ color: 'var(--sage-dk)' }}>Dành cho Bác sĩ</h2>
+        <p className="section-subtitle">Quản lý hồ sơ bệnh nhân một cách khoa học và bảo mật.</p>
+        <div className="feature-grid">
+          <div className="feature-card doc-card">
+            <span className="feature-icon">👥</span>
+            <h3 className="feature-title">Quản lý bệnh nhân</h3>
+            <p className="feature-desc">Theo dõi danh sách bệnh nhân dựa trên mã kết nối riêng biệt.</p>
+          </div>
+          <div className="feature-card doc-card">
+            <span className="feature-icon">📊</span>
+            <h3 className="feature-title">Xem biểu đồ thai kỳ</h3>
+            <p className="feature-desc">Trực quan hóa dữ liệu theo dõi sức khỏe của từng bệnh nhân qua các tuần.</p>
+          </div>
+          <div className="feature-card doc-card">
+            <span className="feature-icon">📅</span>
+            <h3 className="feature-title">Lên lịch khám</h3>
+            <p className="feature-desc">Chủ động hẹn lịch khám, siêu âm và đồng bộ ngay lập tức cho mẹ bầu.</p>
+          </div>
+        </div>
+      </section>
 
-              <label>
-                Mật khẩu
-                <input
-                  type="password" required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
-              </label>
+      <section className="section">
+        <h2 className="section-title">Quy trình sử dụng đơn giản</h2>
+        <p className="section-subtitle">Chỉ với vài thao tác, MamaTrack đã sẵn sàng đồng hành cùng bạn.</p>
+        <div className="process-steps">
+          <div className="process-step">
+            <div className="step-number">1</div>
+            <h3 className="step-title">Tạo tài khoản</h3>
+            <p className="step-desc">Đăng ký bằng email và mã OTP an toàn.</p>
+          </div>
+          <div className="process-step">
+            <div className="step-number">2</div>
+            <h3 className="step-title">Nhập thông tin</h3>
+            <p className="step-desc">Cập nhật các chỉ số sức khỏe thai kỳ mỗi tuần.</p>
+          </div>
+          <div className="process-step">
+            <div className="step-number">3</div>
+            <h3 className="step-title">Bác sĩ theo dõi</h3>
+            <p className="step-desc">Cung cấp mã bệnh nhân để bác sĩ cùng theo dõi.</p>
+          </div>
+          <div className="process-step">
+            <div className="step-number">4</div>
+            <h3 className="step-title">Nhận lịch khám</h3>
+            <p className="step-desc">Đi khám đúng hạn theo lịch hẹn của bác sĩ.</p>
+          </div>
+        </div>
+      </section>
 
-              {/* OTP section – chỉ hiện khi đăng ký */}
-              {mode === 'register' && (
-                <>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.35rem' }}>
-                    <label style={{ marginBottom: 0 }}>Xác thực Email</label>
+      <section id="auth-section" className="auth-wrapper">
+        <div className="auth-card">
+          <div className="auth-header">
+            <h2>Chào mừng bạn</h2>
+            <p>Vui lòng chọn vai trò để tiếp tục</p>
+          </div>
+
+          <div className="roles">
+            <button
+              type="button"
+              className={`role-btn${isMom ? ' active-mom' : ''}`}
+              onClick={() => selectRole('mom')}
+            >
+              <span className="icon">🤰</span>
+              <span className="label">Bà bầu</span>
+            </button>
+            <button
+              type="button"
+              className={`role-btn${isDoc ? ' active-doc' : ''}`}
+              onClick={() => selectRole('doctor')}
+            >
+              <span className="icon">👨‍⚕️</span>
+              <span className="label">Bác sĩ</span>
+            </button>
+          </div>
+
+          {role && (
+            <>
+              <div className="tabs">
+                <button
+                  type="button"
+                  className={`tab-btn${mode === 'login' ? ` active-${accentRole}` : ''}`}
+                  onClick={() => selectMode('login')}
+                >
+                  Đăng nhập
+                </button>
+                <button
+                  type="button"
+                  className={`tab-btn${mode === 'register' ? ` active-${accentRole}` : ''}`}
+                  onClick={() => selectMode('register')}
+                >
+                  Đăng ký
+                </button>
+              </div>
+
+              <form className={`form${isDoc ? ' doc' : ''}`} onSubmit={handleSubmit}>
+                <div className="field-group">
+                  <label>Email</label>
+                  <input
+                    type="email" required
+                    placeholder="Địa chỉ email của bạn"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                  />
+                </div>
+
+                <div className="field-group">
+                  <label>Mật khẩu</label>
+                  <input
+                    type="password" required
+                    placeholder="Ít nhất 6 ký tự"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                  />
+                </div>
+
+                {mode === 'register' && (
+                  <div className="field-group">
+                    <label>Xác thực Email</label>
                     <div className="otp-row">
                       <input
                         type="text"
-                        placeholder="Nhập mã OTP 6 số"
+                        placeholder="Mã OTP 6 số"
                         maxLength={6}
                         value={otpCode}
                         onChange={e => { setOtpCode(e.target.value); setOtpError(''); }}
-                        style={{ letterSpacing: '.2rem', fontWeight: 600 }}
                       />
                       <button
                         type="button"
@@ -352,35 +296,31 @@ export default function HomePage() {
                         onClick={handleSendOtp}
                         disabled={otpLoading || !email}
                       >
-                        {otpLoading ? '⏳' : otpSent ? 'Gửi lại' : 'Gửi mã OTP'}
+                        {otpLoading ? '⏳' : otpSent ? 'Gửi lại mã' : 'Nhận mã OTP'}
                       </button>
                     </div>
-                    {otpError   && <span className="otp-hint" style={{ color: '#b94040' }}>{otpError}</span>}
-                    {otpSuccess  && <span className="otp-success-hint">{otpSuccess}</span>}
+                    {otpError   && <p className="hint" style={{ color: '#b94040' }}>{otpError}</p>}
+                    {otpSuccess && <p className="hint" style={{ color: 'var(--sage-dk)' }}>{otpSuccess}</p>}
                   </div>
-                </>
-              )}
+                )}
 
-              {error   && <p className="msg-error">{error}</p>}
-              {success && <p className="msg-success">{success}</p>}
+                {error   && <div className="msg-error"><span>⚠️</span> {error}</div>}
+                {success && <div className="msg-success"><span>✓</span> {success}</div>}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className={`btn-submit ${accentRole}`}
-              >
-                {loading
-                  ? 'Đang xử lý…'
-                  : mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
-              </button>
-            </form>
-          </>
-        )}
-
-        {!role && (
-          <p className="footer-note">Chọn vai trò để bắt đầu →</p>
-        )}
-      </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`btn-submit ${accentRole}`}
+                >
+                  {loading
+                    ? 'Đang xử lý…'
+                    : mode === 'login' ? 'Đăng nhập vào hệ thống' : 'Tạo tài khoản mới'}
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      </section>
     </>
   );
 }

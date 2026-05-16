@@ -15,7 +15,7 @@ export async function GET(request) {
 
     const db = await getDb();
     const records = await db.all(
-      `SELECT id, patient_code, week, weight, blood_pressure, symptoms
+      `SELECT id, patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement
        FROM records WHERE patient_code = ? ORDER BY week ASC`,
       patientCode
     );
@@ -30,7 +30,7 @@ export async function GET(request) {
 // ── POST /api/records ─────────────────────────────────────────────────
 export async function POST(request) {
   try {
-    const { patient_code, week, weight, blood_pressure, symptoms } = await request.json();
+    const { patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement } = await request.json();
 
     if (!patient_code || week === undefined || week === null) {
       return NextResponse.json({ error: 'Thiếu patient_code hoặc week.' }, { status: 400 });
@@ -43,8 +43,8 @@ export async function POST(request) {
       patient_code
     );
 
-    const maxWeek    = row?.max_week;
-    const expected   = maxWeek === null || maxWeek === undefined ? 1 : maxWeek + 1;
+    const maxWeek = row?.max_week;
+    const expected = maxWeek === null || maxWeek === undefined ? 1 : maxWeek + 1;
 
     if (week !== expected) {
       return NextResponse.json(
@@ -54,13 +54,13 @@ export async function POST(request) {
     }
 
     const result = await db.run(
-      `INSERT INTO records (patient_code, week, weight, blood_pressure, symptoms)
-       VALUES (?, ?, ?, ?, ?)`,
-      patient_code, week, weight ?? null, blood_pressure ?? null, symptoms ?? null
+      `INSERT INTO records (patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      patient_code, week, weight ?? null, blood_pressure ?? null, symptoms ?? null, mood ?? null, fetal_movement ?? null
     );
 
     const newRecord = await db.get(
-      `SELECT id, patient_code, week, weight, blood_pressure, symptoms FROM records WHERE id = ?`,
+      `SELECT id, patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement FROM records WHERE id = ?`,
       result.lastID
     );
 
@@ -75,7 +75,7 @@ export async function POST(request) {
 // Body: { id, weight, blood_pressure, symptoms }
 export async function PUT(request) {
   try {
-    const { id, weight, blood_pressure, symptoms } = await request.json();
+    const { id, weight, blood_pressure, symptoms, mood, fetal_movement } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: 'Thiếu id bản ghi.' }, { status: 400 });
@@ -89,12 +89,12 @@ export async function PUT(request) {
     }
 
     await db.run(
-      `UPDATE records SET weight = ?, blood_pressure = ?, symptoms = ? WHERE id = ?`,
-      weight ?? null, blood_pressure ?? null, symptoms ?? null, id
+      `UPDATE records SET weight = ?, blood_pressure = ?, symptoms = ?, mood = ?, fetal_movement = ? WHERE id = ?`,
+      weight ?? null, blood_pressure ?? null, symptoms ?? null, mood ?? null, fetal_movement ?? null, id
     );
 
     const updated = await db.get(
-      `SELECT id, patient_code, week, weight, blood_pressure, symptoms FROM records WHERE id = ?`,
+      `SELECT id, patient_code, week, weight, blood_pressure, symptoms, mood, fetal_movement FROM records WHERE id = ?`,
       id
     );
 

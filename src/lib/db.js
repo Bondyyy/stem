@@ -73,4 +73,15 @@ async function initDb(db) {
       created_at       INTEGER NOT NULL DEFAULT (strftime('%s','now'))
     );
   `);
+
+  await safeAddColumn(db, 'records', 'mood', 'TEXT');
+  await safeAddColumn(db, 'records', 'fetal_movement', 'TEXT');
+}
+
+async function safeAddColumn(db, table, column, type) {
+  try {
+    await db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  } catch (err) {
+    // column might already exist
+  }
 }

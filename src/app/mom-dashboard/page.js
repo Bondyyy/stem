@@ -24,6 +24,8 @@ export default function MomDashboard() {
   const [weight,        setWeight]        = useState('');
   const [bloodPressure, setBloodPressure] = useState('');
   const [symptoms,      setSymptoms]      = useState('');
+  const [mood,          setMood]          = useState('');
+  const [fetalMovement, setFetalMovement] = useState('');
   const [submitting,    setSubmitting]    = useState(false);
   const [formError,     setFormError]     = useState('');
   const [formSuccess,   setFormSuccess]   = useState('');
@@ -33,6 +35,8 @@ export default function MomDashboard() {
   const [editWeight,   setEditWeight]   = useState('');
   const [editBP,       setEditBP]       = useState('');
   const [editSymptoms, setEditSymptoms] = useState('');
+  const [editMood,     setEditMood]     = useState('');
+  const [editFetalMovement, setEditFetalMovement] = useState('');
   const [editSaving,   setEditSaving]   = useState(false);
   const [editError,    setEditError]    = useState('');
 
@@ -108,6 +112,10 @@ export default function MomDashboard() {
   /* ── submit new record ── */
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!weight && !bloodPressure && !symptoms && !mood && !fetalMovement) {
+      setFormError('Vui lòng nhập ít nhất một thông tin trước khi lưu.');
+      return;
+    }
     setFormError(''); setFormSuccess(''); setSubmitting(true);
     try {
       const res  = await fetch('/api/records', {
@@ -117,6 +125,8 @@ export default function MomDashboard() {
           weight:         weight        ? parseFloat(weight) : null,
           blood_pressure: bloodPressure || null,
           symptoms:       symptoms      || null,
+          mood:           mood          || null,
+          fetal_movement: fetalMovement || null,
         }),
       });
       const data = await res.json();
@@ -126,7 +136,7 @@ export default function MomDashboard() {
       setNewRowId(saved.id);
       setTimeout(() => setNewRowId(null), 1200);
       setFormSuccess(`✓ Đã lưu Tuần ${saved.week} thành công!`);
-      setWeight(''); setBloodPressure(''); setSymptoms('');
+      setWeight(''); setBloodPressure(''); setSymptoms(''); setMood(''); setFetalMovement('');
       setTimeout(() => setFormSuccess(''), 3500);
     } catch { setFormError('Không thể kết nối máy chủ.'); }
     finally  { setSubmitting(false); }
@@ -138,6 +148,8 @@ export default function MomDashboard() {
     setEditWeight(record.weight ?? '');
     setEditBP(record.blood_pressure ?? '');
     setEditSymptoms(record.symptoms ?? '');
+    setEditMood(record.mood ?? '');
+    setEditFetalMovement(record.fetal_movement ?? '');
     setEditError('');
   }
 
@@ -152,6 +164,8 @@ export default function MomDashboard() {
           weight:         editWeight  ? parseFloat(editWeight) : null,
           blood_pressure: editBP      || null,
           symptoms:       editSymptoms || null,
+          mood:           editMood    || null,
+          fetal_movement: editFetalMovement || null,
         }),
       });
       const data = await res.json();
@@ -285,12 +299,46 @@ export default function MomDashboard() {
       <nav className="nav">
         <div className="nav-brand"><span>🌸</span> MamaTrack</div>
         <div className="nav-right">
-          {patientCode && <span className="patient-badge">Mã: {patientCode}</span>}
           <button className="btn-logout" onClick={handleLogout}>Đăng xuất</button>
         </div>
       </nav>
 
       <main className="page">
+        {/* ── Welcome Header ── */}
+        <div className="full-width" style={{ marginBottom: '0.5rem' }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', color: 'var(--rose-dk)', marginBottom: '.5rem' }}>
+            Chào mẹ, hôm nay mẹ thế nào? 🌸
+          </h1>
+          <p style={{ color: 'var(--muted)', fontSize: '1.05rem' }}>
+            Luôn theo dõi sức khỏe để mẹ và bé cùng khỏe mạnh nhé. {patientCode && <span style={{ marginLeft: '1rem', background: 'var(--blush)', padding: '0.2rem 0.8rem', borderRadius: '99px', border: '1px solid var(--border)' }}>Mã hồ sơ: <strong style={{ color: 'var(--rose-dk)' }}>{patientCode}</strong></span>}
+          </p>
+        </div>
+
+        {/* ── Stats Strip ── */}
+        <div className="card full-width">
+          <div className="stat-row" style={{ paddingTop: '1.5rem' }}>
+            <div className="stat-box">
+              <div className="stat-label">Tuần thai hiện tại</div>
+              <div className="stat-value">{maxWeek > 0 ? maxWeek : '—'} <span className="stat-unit">tuần</span></div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-label">Cân nặng gần nhất</div>
+              <div className="stat-value">{records.length > 0 ? records[records.length - 1].weight ?? '—' : '—'} <span className="stat-unit">kg</span></div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-label">Huyết áp gần nhất</div>
+              <div className="stat-value">{records.length > 0 ? records[records.length - 1].blood_pressure ?? '—' : '—'}</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-label">Việc cần làm</div>
+              <div className="stat-value">{todos.filter(t => !t.completed).length} <span className="stat-unit">việc</span></div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-label">Lịch khám sắp tới</div>
+              <div className="stat-value">{appointments.length} <span className="stat-unit">lịch</span></div>
+            </div>
+          </div>
+        </div>
 
         {/* ── LEFT: History table ── */}
         <div className="card">
@@ -312,6 +360,8 @@ export default function MomDashboard() {
                   <th>Cân nặng</th>
                   <th>Huyết áp</th>
                   <th>Ghi chú</th>
+                  <th>Tâm trạng</th>
+                  <th>Thai máy</th>
                   <th style={{ textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
@@ -319,17 +369,17 @@ export default function MomDashboard() {
                 {loading ? (
                   skeletonRows.map((_, i) => (
                     <tr key={i}>
-                      {[40, 70, 60, 110, 60].map((w, j) => (
+                      {[40, 70, 60, 110, 80, 80, 60].map((w, j) => (
                         <td key={j}><div className="skeleton-cell" style={{ width: w }} /></td>
                       ))}
                     </tr>
                   ))
                 ) : records.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={7}>
                       <div className="empty-state">
                         <span className="empty-icon">📋</span>
-                        Chưa có dữ liệu. Hãy nhập tuần đầu tiên!
+                        <p>Chưa có dữ liệu. Hãy nhập tuần đầu tiên!</p>
                       </div>
                     </td>
                   </tr>
@@ -345,6 +395,16 @@ export default function MomDashboard() {
                         <td>
                           {r.symptoms
                             ? <span className="symptom-tag" title={r.symptoms}>{r.symptoms}</span>
+                            : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}
+                        </td>
+                        <td>
+                          {r.mood
+                            ? <span className="symptom-tag" title={r.mood}>{r.mood}</span>
+                            : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}
+                        </td>
+                        <td>
+                          {r.fetal_movement
+                            ? <span className="symptom-tag" title={r.fetal_movement}>{r.fetal_movement}</span>
                             : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>}
                         </td>
                         <td>
@@ -415,6 +475,28 @@ export default function MomDashboard() {
                 <textarea placeholder="VD: Buồn nôn nhẹ, mệt mỏi…"
                   value={symptoms} onChange={e => setSymptoms(e.target.value)} />
               </div>
+              <div className="field">
+                <label>Tâm trạng</label>
+                <select value={mood} onChange={e => setMood(e.target.value)}>
+                  <option value="">- Chọn tâm trạng -</option>
+                  <option value="Tốt">Tốt</option>
+                  <option value="Bình thường">Bình thường</option>
+                  <option value="Lo lắng">Lo lắng</option>
+                  <option value="Mệt mỏi">Mệt mỏi</option>
+                  <option value="Buồn">Buồn</option>
+                  <option value="Căng thẳng">Căng thẳng</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Thai máy</label>
+                <select value={fetalMovement} onChange={e => setFetalMovement(e.target.value)}>
+                  <option value="">- Chọn trạng thái -</option>
+                  <option value="Chưa cảm nhận">Chưa cảm nhận</option>
+                  <option value="Bình thường">Bình thường</option>
+                  <option value="Ít hơn mọi ngày">Ít hơn mọi ngày</option>
+                  <option value="Nhiều hơn mọi ngày">Nhiều hơn mọi ngày</option>
+                </select>
+              </div>
               {formError   && <p className="msg msg-error">{formError}</p>}
               {formSuccess && <p className="msg msg-success">{formSuccess}</p>}
               <button type="submit" className="btn-submit" disabled={submitting || loading}>
@@ -424,15 +506,15 @@ export default function MomDashboard() {
           </div>
         </div>
 
-        {/* ── Việc cần làm ── */}
-        <div className="card full-width">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Việc cần làm</div>
-              <div className="card-subtitle">{todos.filter(t => !t.completed).length} việc chưa hoàn thành</div>
+        <div className="grid-2 full-width">
+          {/* ── Việc cần làm ── */}
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <div className="card-title">Việc cần làm</div>
+                <div className="card-subtitle">{todos.filter(t => !t.completed).length} việc chưa hoàn thành</div>
+              </div>
             </div>
-            <span style={{ fontSize: '1.3rem' }}>📝</span>
-          </div>
           <div className="form-body">
             <form className="form" onSubmit={handleAddTodo} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '.6rem' }}>
               <div className="field" style={{ flex: '2 1 180px' }}>
@@ -457,18 +539,18 @@ export default function MomDashboard() {
           </div>
 
           {todos.length === 0 ? (
-            <div className="empty-state"><span className="empty-icon">🎯</span>Chưa có việc cần làm nào.</div>
+            <div className="empty-state"><span className="empty-icon">🎯</span><p>Chưa có việc cần làm nào.</p></div>
           ) : (
             todos.map(t => (
-              <div key={t.id} className={`todo-item${t.completed ? ' done' : ''}`}>
-                <div className="todo-info">
-                  <div className="todo-title">{t.title}</div>
-                  <div className="todo-meta">
+              <div key={t.id} className={`list-item${t.completed ? ' done' : ''}`}>
+                <div className="list-info">
+                  <div className="list-title">{t.title}</div>
+                  <div className="list-meta">
                     {t.task_time && <span>🕐 {t.task_time}</span>}
                     {t.task_date && <span> 📅 {t.task_date}</span>}
                   </div>
                 </div>
-                <div className="todo-actions">
+                <div className="list-actions">
                   {!t.completed && (
                     <>
                       <button className="act-btn act-done" title="Đã làm xong" onClick={() => handleToggleTodo(t)}><Check size={14} /></button>
@@ -480,30 +562,32 @@ export default function MomDashboard() {
               </div>
             ))
           )}
-        </div>
-
-        {/* ── Lịch khám sắp tới ── */}
-        <div className="card full-width">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Lịch khám sắp tới</div>
-              <div className="card-subtitle">{appointments.length} lịch hẹn</div>
-            </div>
-            <span style={{ fontSize: '1.3rem' }}>🗓️</span>
           </div>
-          {appointments.length === 0 ? (
-            <div className="empty-state"><span className="empty-icon">📅</span>Chưa có lịch khám nào.</div>
-          ) : (
+
+          {/* ── Lịch khám sắp tới ── */}
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <div className="card-title">Lịch khám sắp tới</div>
+                <div className="card-subtitle">{appointments.length} lịch hẹn</div>
+              </div>
+            </div>
+            {appointments.length === 0 ? (
+              <div className="empty-state"><span className="empty-icon">📅</span><p>Chưa có lịch khám nào.</p></div>
+            ) : (
             appointments.map(a => (
-              <div key={a.id} className="appt-item">
-                <div className="appt-title">🏥 {a.title}</div>
-                <div className="appt-detail">
-                  📅 {a.appointment_date} &nbsp;·&nbsp; 🕐 {a.appointment_time}
-                  {a.location && <><br />📍 {a.location}</>}
+              <div key={a.id} className="list-item">
+                <div className="list-info">
+                  <div className="list-title">🏥 {a.title}</div>
+                  <div className="list-meta">
+                    📅 {a.appointment_date} &nbsp;·&nbsp; 🕐 {a.appointment_time}
+                    {a.location && <><br />📍 {a.location}</>}
+                  </div>
                 </div>
               </div>
             ))
-          )}
+            )}
+          </div>
         </div>
 
       </main>
@@ -543,6 +627,28 @@ export default function MomDashboard() {
                 <label>Ghi chú</label>
                 <textarea placeholder="VD: Buồn nôn nhẹ…"
                   value={editSymptoms} onChange={e => setEditSymptoms(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Tâm trạng</label>
+                <select value={editMood} onChange={e => setEditMood(e.target.value)}>
+                  <option value="">- Chọn tâm trạng -</option>
+                  <option value="Tốt">Tốt</option>
+                  <option value="Bình thường">Bình thường</option>
+                  <option value="Lo lắng">Lo lắng</option>
+                  <option value="Mệt mỏi">Mệt mỏi</option>
+                  <option value="Buồn">Buồn</option>
+                  <option value="Căng thẳng">Căng thẳng</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Thai máy</label>
+                <select value={editFetalMovement} onChange={e => setEditFetalMovement(e.target.value)}>
+                  <option value="">- Chọn trạng thái -</option>
+                  <option value="Chưa cảm nhận">Chưa cảm nhận</option>
+                  <option value="Bình thường">Bình thường</option>
+                  <option value="Ít hơn mọi ngày">Ít hơn mọi ngày</option>
+                  <option value="Nhiều hơn mọi ngày">Nhiều hơn mọi ngày</option>
+                </select>
               </div>
 
               {editError && (

@@ -2,217 +2,14 @@
 
 // src/app/doctor-dashboard/page.js
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, Dot,
+  Tooltip, ResponsiveContainer,
 } from 'recharts';
-
-/* ── Styles ─────────────────────────────────────────────────────────── */
-const css = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600&family=DM+Sans:wght@300;400;500&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --sage:       #8fac9a;
-  --sage-dk:    #5e8870;
-  --sage-xdk:   #3d6652;
-  --sage-lt:    #e4f0e8;
-  --cream:      #f4f8f5;
-  --blush-sage: #eaf3ee;
-  --ink:        #1e2d26;
-  --ink-lt:     #4a5e54;
-  --muted:      #7a9080;
-  --border:     #cde0d5;
-  --white:      #ffffff;
-  --rose:       #c97070;
-  --radius-sm:  .65rem;
-  --radius-md:  1rem;
-  --radius-lg:  1.4rem;
-  --shadow-sm:  0 2px 12px rgba(0,0,0,.07);
-  --shadow-md:  0 8px 36px rgba(0,0,0,.10);
-}
-
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--cream);
-  min-height: 100vh;
-  color: var(--ink);
-}
-
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
-
-/* ── Nav ── */
-.nav {
-  background: var(--white);
-  border-bottom: 1px solid var(--border);
-  padding: .85rem 2rem;
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 10;
-  box-shadow: var(--shadow-sm);
-}
-.nav-brand {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.3rem; color: var(--sage-dk);
-  display: flex; align-items: center; gap: .5rem;
-}
-.role-badge {
-  font-size: .75rem; font-weight: 500;
-  background: var(--sage-lt); color: var(--sage-xdk);
-  padding: .28rem .8rem; border-radius: 99px;
-  border: 1px solid var(--sage);
-}
-.btn-logout {
-  font-size: .8rem; font-weight: 500;
-  background: transparent; border: 1px solid var(--border);
-  color: var(--muted); padding: .3rem .85rem;
-  border-radius: 99px; cursor: pointer; transition: all .18s;
-}
-.btn-logout:hover { background: var(--sage-lt); color: var(--sage-dk); border-color: var(--sage); }
-
-/* ── Page ── */
-.page { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
-
-/* ── Search bar ── */
-.search-card {
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem 1.75rem;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 1.5rem;
-  display: flex; flex-direction: column; gap: .75rem;
-}
-.search-label {
-  font-size: .8rem; font-weight: 500;
-  color: var(--muted); letter-spacing: .06em; text-transform: uppercase;
-}
-.search-row { display: flex; gap: .75rem; }
-.search-input {
-  flex: 1; padding: .75rem 1.1rem;
-  border-radius: var(--radius-sm); border: 1.5px solid var(--border);
-  background: var(--blush-sage);
-  font-family: 'DM Sans', sans-serif; font-size: .95rem; color: var(--ink);
-  outline: none; transition: all .18s; letter-spacing: .05em; text-transform: uppercase;
-}
-.search-input::placeholder { color: #a0bfae; text-transform: none; letter-spacing: 0; }
-.search-input:focus {
-  border-color: var(--sage-dk); background: var(--white);
-  box-shadow: 0 0 0 3px rgba(94,136,112,.15);
-}
-.btn-search {
-  padding: .75rem 1.6rem;
-  border-radius: var(--radius-sm); border: none;
-  background: var(--sage-dk); color: var(--white);
-  font-family: 'DM Sans', sans-serif; font-size: .92rem; font-weight: 500;
-  cursor: pointer; transition: all .18s; white-space: nowrap;
-  display: flex; align-items: center; gap: .5rem;
-}
-.btn-search:hover:not(:disabled) { background: var(--sage-xdk); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(61,102,82,.25); }
-.btn-search:disabled { opacity: .55; cursor: not-allowed; transform: none; }
-
-/* ── Card shared ── */
-.card {
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  margin-bottom: 1.5rem;
-  animation: slideUp .35s cubic-bezier(.22,.68,0,1.2) both;
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: none; }
-}
-.card-header {
-  padding: 1.1rem 1.5rem .9rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--blush-sage);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.card-title { font-family: 'Playfair Display', serif; font-size: 1.08rem; color: var(--ink); }
-.card-sub   { font-size: .78rem; color: var(--muted); margin-top: .15rem; }
-
-/* ── Chart ── */
-.chart-wrap { padding: 1.25rem 1rem 1rem; }
-
-/* ── Stat row above chart ── */
-.stat-row {
-  display: flex; gap: 1rem; flex-wrap: wrap;
-  padding: 0 1.5rem 1rem;
-}
-.stat-box {
-  flex: 1; min-width: 110px;
-  background: var(--blush-sage); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: .75rem 1rem;
-}
-.stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-.stat-value { font-size: 1.25rem; font-weight: 500; color: var(--sage-xdk); margin-top: .15rem; }
-.stat-unit  { font-size: .75rem; color: var(--muted); font-weight: 400; }
-
-/* ── Custom tooltip ── */
-.chart-tooltip {
-  background: var(--white); border: 1px solid var(--border);
-  border-radius: .6rem; padding: .6rem .9rem;
-  box-shadow: var(--shadow-md);
-  font-size: .82rem; color: var(--ink);
-}
-.chart-tooltip .tt-week { font-weight: 500; color: var(--sage-dk); margin-bottom: .25rem; }
-
-/* ── Table ── */
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: .855rem; }
-thead th {
-  background: var(--blush-sage); color: var(--muted);
-  font-weight: 500; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase;
-  padding: .65rem 1.2rem; text-align: left; position: sticky; top: 0;
-}
-tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: var(--sage-lt); }
-tbody td { padding: .75rem 1.2rem; color: var(--ink-lt); vertical-align: middle; }
-.td-week { font-weight: 500; color: var(--sage-dk); font-size: 1rem; }
-.tag {
-  display: inline-block; background: var(--sage-lt); color: var(--sage-xdk);
-  border: 1px solid var(--sage); border-radius: 6px;
-  padding: .15rem .55rem; font-size: .76rem;
-  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.bp-pill {
-  display: inline-block; background: #fff4e6; color: #9a6200;
-  border: 1px solid #f0c875; border-radius: 99px;
-  padding: .15rem .6rem; font-size: .78rem; font-weight: 500;
-}
-
-/* ── Empty / error states ── */
-.state-box {
-  text-align: center; padding: 3.5rem 1.5rem;
-}
-.state-icon { font-size: 2.8rem; opacity: .45; margin-bottom: .7rem; display: block; }
-.state-title { font-size: 1rem; font-weight: 500; color: var(--ink-lt); }
-.state-sub   { font-size: .85rem; color: var(--muted); margin-top: .35rem; }
-
-.empty-idle   .state-title { color: var(--muted); }
-.error-state  .state-title { color: #b94040; }
-.error-state  .state-icon  { opacity: 1; }
-
-/* ── Loading skeleton ── */
-.skeleton-cell {
-  height: 13px; border-radius: 6px;
-  background: linear-gradient(90deg, var(--blush-sage) 25%, var(--border) 50%, var(--blush-sage) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.3s infinite;
-}
-@keyframes shimmer {
-  from { background-position: 200% 0; }
-  to   { background-position: -200% 0; }
-}
-`;
+import { Trash2 } from 'lucide-react';
+import { css } from './styles';
 
 /* ── Custom recharts tooltip ── */
 function CustomTooltip({ active, payload, label }) {
@@ -234,28 +31,121 @@ function CustomDot(props) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────
-   Component
-───────────────────────────────────────────────────────────────────── */
 export default function DoctorDashboard() {
   const router = useRouter();
 
   const [query,    setQuery]    = useState('');
-  const [searched, setSearched] = useState('');   // code actually searched
-  const [records,  setRecords]  = useState(null); // null = not searched yet
+  const [searched, setSearched] = useState('');
+  const [records,  setRecords]  = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
+
+  // ── Patients ──
+  const [doctorEmail,    setDoctorEmail]    = useState('');
+  const [patients,       setPatients]       = useState([]);
+  const [patientInput,   setPatientInput]   = useState('');
+  const [patientMsg,     setPatientMsg]     = useState('');
+  const [patientSearch,  setPatientSearch]  = useState('');
+
+  // ── Appointments ──
+  const [apptCode,   setApptCode]   = useState('');
+  const [apptTitle,  setApptTitle]  = useState('');
+  const [apptDate,   setApptDate]   = useState('');
+  const [apptTime,   setApptTime]   = useState('');
+  const [apptLoc,    setApptLoc]    = useState('');
+  const [apptMsg,    setApptMsg]    = useState('');
+  const [apptSaving, setApptSaving] = useState(false);
+
+  /* ── fetch patients ── */
+  const fetchPatients = useCallback(async (email) => {
+    try {
+      const res  = await fetch(`/api/patients?doctor_email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (res.ok) setPatients(data.patients ?? []);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    const email = localStorage.getItem('email');
+    if (!email) { router.push('/'); return; }
+    setDoctorEmail(email);
+    fetchPatients(email);
+  }, [fetchPatients, router]);
 
   function handleLogout() {
     localStorage.removeItem('role');
     localStorage.removeItem('patient_code');
+    localStorage.removeItem('email');
     router.push('/');
   }
 
-  async function handleSearch(e) {
-    e?.preventDefault();
-    const code = query.trim().toUpperCase();
+  /* ── add patient ── */
+  async function handleAddPatient(e) {
+    e.preventDefault();
+    const code = patientInput.trim().toUpperCase();
     if (!code) return;
+    setPatientMsg('');
+    try {
+      const res = await fetch('/api/patients', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctor_email: doctorEmail, patient_code: code }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setPatientMsg(data.error); return; }
+      setPatientInput('');
+      setPatientMsg('✓ Đã thêm bệnh nhân.');
+      fetchPatients(doctorEmail);
+      setTimeout(() => setPatientMsg(''), 3000);
+    } catch { setPatientMsg('Không thể kết nối máy chủ.'); }
+  }
+
+  /* ── delete patient ── */
+  async function handleDeletePatient(code) {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bệnh nhân này khỏi danh sách quản lý?')) return;
+    try {
+      const res = await fetch('/api/patients', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doctor_email: doctorEmail, patient_code: code }),
+      });
+      if (res.ok) setPatients(prev => prev.filter(p => p.patient_code !== code));
+    } catch { /* silent */ }
+  }
+
+  /* ── create appointment ── */
+  async function handleCreateAppointment(e) {
+    e.preventDefault();
+    if (!apptCode || !apptTitle || !apptDate || !apptTime) return;
+    setApptSaving(true); setApptMsg('');
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_code: apptCode.trim().toUpperCase(),
+          title: apptTitle, appointment_date: apptDate,
+          appointment_time: apptTime, location: apptLoc || null,
+          created_by: doctorEmail,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setApptMsg(data.error); return; }
+      setApptMsg('✓ Đã tạo lịch khám thành công.');
+      setApptCode(''); setApptTitle(''); setApptDate(''); setApptTime(''); setApptLoc('');
+      setTimeout(() => setApptMsg(''), 4000);
+    } catch { setApptMsg('Không thể kết nối máy chủ.'); }
+    finally { setApptSaving(false); }
+  }
+
+  /* ── filtered patients (realtime search) ── */
+  const filteredPatients = patientSearch
+    ? patients.filter(p => p.patient_code.toLowerCase().includes(patientSearch.toLowerCase()))
+    : patients;
+
+  async function handleSearch(e, codeOverride) {
+    e?.preventDefault();
+    const code = (codeOverride || query).trim().toUpperCase();
+    if (!code) return;
+
+    if (codeOverride) setQuery(code);
 
     setLoading(true); setError(''); setRecords(null); setSearched(code);
 
@@ -280,14 +170,7 @@ export default function DoctorDashboard() {
   const minW          = weights.length ? Math.min(...weights) : null;
   const maxW          = weights.length ? Math.max(...weights) : null;
   const latestW       = weights.at(-1) ?? null;
-  const totalWeeks    = records?.length ?? 0;
-
-  const chartData     = records?.map(r => ({
-    week:   r.week,
-    weight: r.weight ?? null,
-  })) ?? [];
-
-  return (
+   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: css }} />
 
@@ -303,203 +186,311 @@ export default function DoctorDashboard() {
       </nav>
 
       <main className="page">
-
-        {/* ── Search ── */}
-        <div className="search-card">
-          <label className="search-label">Tra cứu hồ sơ bệnh nhân</label>
-          <form className="search-row" onSubmit={handleSearch}>
-            <input
-              className="search-input"
-              type="text"
-              placeholder="Nhập mã bệnh nhân — VD: BN4721"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-            />
-            <button className="btn-search" type="submit" disabled={loading || !query.trim()}>
-              {loading ? '⏳ Đang tìm…' : '🔍 Tìm kiếm'}
-            </button>
-          </form>
+        <div className="full-width" style={{ marginBottom: '0.5rem' }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', color: 'var(--sage-dk)', marginBottom: '.5rem' }}>Bảng điều khiển bác sĩ</h1>
+          <p style={{ color: 'var(--muted)', fontSize: '1.05rem' }}>Theo dõi hồ sơ thai kỳ và lịch khám của bệnh nhân</p>
         </div>
 
-        {/* ── States ── */}
-
-        {/* idle */}
-        {records === null && !loading && !error && (
-          <div className="card">
-            <div className="state-box empty-idle">
-              <span className="state-icon">🗂️</span>
-              <div className="state-title">Nhập mã bệnh nhân để bắt đầu tra cứu</div>
-              <div className="state-sub">Hệ thống sẽ hiển thị biểu đồ và lịch sử thai kỳ</div>
-            </div>
+        {/* ── TRÁI: Quản lý bệnh nhân ── */}
+        <div className="left-col" style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+          {/* ── Search ── */}
+          <div className="search-card" style={{ marginBottom: 0 }}>
+            <label className="search-label">Tra cứu hồ sơ bệnh nhân</label>
+            <form className="search-row" onSubmit={handleSearch}>
+              <input
+                className="search-input"
+                type="text"
+                placeholder="Nhập mã bệnh nhân — VD: BN4721"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
+              <button className="btn-search" type="submit" disabled={loading || !query.trim()}>
+                {loading ? '⏳' : '🔍 Tìm'}
+              </button>
+            </form>
           </div>
-        )}
 
-        {/* loading skeleton */}
-        {loading && (
-          <div className="card">
+          <div className="card" style={{ marginBottom: 0 }}>
             <div className="card-header">
               <div>
-                <div className="card-title">Đang tải dữ liệu…</div>
-                <div className="card-sub">Mã: {searched}</div>
+                <div className="card-title">Quản lý bệnh nhân</div>
+                <div className="card-sub">{patients.length} bệnh nhân đang quản lý</div>
               </div>
             </div>
-            <div style={{ padding: '1.5rem' }}>
-              {[1,2,3,4].map(i => (
-                <div key={i} style={{ display: 'flex', gap: '1rem', marginBottom: '.85rem' }}>
-                  {[60, 90, 80, 130].map((w, j) => (
-                    <div key={j} className="skeleton-cell" style={{ width: w, flexShrink: 0 }} />
-                  ))}
+            <div className="form-body" style={{ paddingBottom: '1rem' }}>
+              <form className="form" onSubmit={handleAddPatient} style={{ flexDirection: 'row', gap: '.6rem', flexWrap: 'wrap' }}>
+                <div className="field" style={{ flex: '1 1 140px' }}>
+                  <input type="text" placeholder="Thêm mã (VD: BN4721)" value={patientInput} onChange={e => setPatientInput(e.target.value)} style={{ textTransform: 'uppercase', letterSpacing: '.04em' }} />
                 </div>
-              ))}
+                <button type="submit" className="btn-submit" disabled={!patientInput.trim()} style={{ padding: '.7rem 1.2rem', flex: '0 0 auto' }}>➕ Thêm</button>
+              </form>
+              {patientMsg && <p className={`msg ${patientMsg.startsWith('✓') ? 'msg-success' : 'msg-error'}`}>{patientMsg}</p>}
+              {patients.length > 0 && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <input type="text" placeholder="🔍 Tìm trong danh sách..." value={patientSearch} onChange={e => setPatientSearch(e.target.value)} style={{ textTransform: 'uppercase', letterSpacing: '.04em' }} />
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* error */}
-        {error && (
-          <div className="card">
-            <div className="state-box error-state">
-              <span className="state-icon">⚠️</span>
-              <div className="state-title">Không tìm thấy dữ liệu</div>
-              <div className="state-sub">Mã <strong>{searched}</strong> chưa có hồ sơ hoặc chưa nhập liệu.</div>
-            </div>
-          </div>
-        )}
-
-        {/* no records */}
-        {!loading && !error && records !== null && records.length === 0 && (
-          <div className="card">
-            <div className="state-box">
-              <span className="state-icon">📭</span>
-              <div className="state-title">Chưa có dữ liệu thai kỳ</div>
-              <div className="state-sub">Bệnh nhân <strong>{searched}</strong> chưa nhập liệu tuần nào.</div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Results ── */}
-        {!loading && !error && records !== null && records.length > 0 && (
-          <>
-            {/* Stat strip */}
-            <div className="card" style={{ marginBottom: '1.5rem' }}>
-              <div className="card-header">
-                <div>
-                  <div className="card-title">Hồ sơ: {searched}</div>
-                  <div className="card-sub">Theo dõi {totalWeeks} tuần thai kỳ</div>
-                </div>
-                <span style={{ fontSize: '.8rem', fontWeight: 500, background: 'var(--sage-dk)', color: '#fff', padding: '.25rem .75rem', borderRadius: 99 }}>
-                  Tuần {records.at(-1).week}
-                </span>
-              </div>
-              <div className="stat-row">
-                <div className="stat-box">
-                  <div className="stat-label">Cân nặng hiện tại</div>
-                  <div className="stat-value">{latestW ?? '—'} <span className="stat-unit">kg</span></div>
-                </div>
-                <div className="stat-box">
-                  <div className="stat-label">Thấp nhất</div>
-                  <div className="stat-value">{minW ?? '—'} <span className="stat-unit">kg</span></div>
-                </div>
-                <div className="stat-box">
-                  <div className="stat-label">Cao nhất</div>
-                  <div className="stat-value">{maxW ?? '—'} <span className="stat-unit">kg</span></div>
-                </div>
-                <div className="stat-box">
-                  <div className="stat-label">Tăng cân</div>
-                  <div className="stat-value">
-                    {minW && latestW ? `+${(latestW - minW).toFixed(1)}` : '—'}
-                    <span className="stat-unit"> kg</span>
+            {filteredPatients.length === 0 ? (
+              <div className="empty-state"><span className="empty-icon">👥</span><p>{patients.length === 0 ? 'Chưa có bệnh nhân nào.' : 'Không tìm thấy kết quả.'}</p></div>
+            ) : (
+              <div>
+                {filteredPatients.map(p => (
+                  <div 
+                    key={p.patient_code} 
+                    className="patient-item"
+                    onClick={() => handleSearch(null, p.patient_code)}
+                    style={{ cursor: 'pointer', background: searched === p.patient_code ? 'var(--sage-lt)' : '' }}
+                  >
+                    <div>
+                      <div className="patient-code">{p.patient_code}</div>
+                      {p.patient_email && <div className="patient-email">{p.patient_email}</div>}
+                    </div>
+                    <button 
+                      className="act-btn act-del" 
+                      title="Xóa" 
+                      onClick={(e) => { e.stopPropagation(); handleDeletePatient(p.patient_code); }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Line chart */}
-            {weights.length > 0 && (
-              <div className="card">
-                <div className="card-header">
-                  <div>
-                    <div className="card-title">Biểu đồ cân nặng theo tuần</div>
-                    <div className="card-sub">Đơn vị: kg</div>
-                  </div>
-                </div>
-                <div className="chart-wrap">
-                  <ResponsiveContainer width="100%" height={260}>
-                    <LineChart data={chartData} margin={{ top: 10, right: 24, left: -10, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 4" stroke="#cde0d5" vertical={false} />
-                      <XAxis
-                        dataKey="week"
-                        tick={{ fontSize: 12, fill: '#7a9080', fontFamily: 'DM Sans, sans-serif' }}
-                        tickLine={false} axisLine={false}
-                        label={{ value: 'Tuần', position: 'insideRight', offset: 10, fontSize: 12, fill: '#7a9080' }}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 12, fill: '#7a9080', fontFamily: 'DM Sans, sans-serif' }}
-                        tickLine={false} axisLine={false}
-                        domain={['auto', 'auto']}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Line
-                        type="monotone" dataKey="weight"
-                        stroke="#5e8870" strokeWidth={2.5}
-                        dot={<CustomDot />}
-                        activeDot={{ r: 7, fill: '#5e8870', stroke: '#fff', strokeWidth: 2 }}
-                        connectNulls
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                ))}
               </div>
             )}
+          </div>
+        </div>
 
-            {/* Detail table */}
-            <div className="card">
-              <div className="card-header">
-                <div>
-                  <div className="card-title">Chi tiết từng tuần</div>
-                  <div className="card-sub">{totalWeeks} bản ghi</div>
-                </div>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Tuần</th>
-                      <th>Cân nặng (kg)</th>
-                      <th>Huyết áp</th>
-                      <th>Triệu chứng / Ghi chú</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {records.map(r => (
-                      <tr key={r.id}>
-                        <td className="td-week">{r.week}</td>
-                        <td>
-                          {r.weight
-                            ? <strong style={{ color: 'var(--sage-dk)' }}>{r.weight}</strong>
-                            : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>
-                          }
-                        </td>
-                        <td>
-                          {r.blood_pressure
-                            ? <span className="bp-pill">{r.blood_pressure}</span>
-                            : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>
-                          }
-                        </td>
-                        <td>
-                          {r.symptoms
-                            ? <span className="tag" title={r.symptoms}>{r.symptoms}</span>
-                            : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>
-                          }
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* ── PHẢI: Hồ sơ bệnh nhân ── */}
+        <div className="right-col" style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+          
+          {/* idle */}
+          {records === null && !loading && !error && (
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="state-box empty-idle">
+                <span className="state-icon">🗂️</span>
+                <div className="state-title">Chọn một bệnh nhân để xem biểu đồ và lịch sử thai kỳ</div>
+                <div className="state-sub">Hồ sơ sẽ hiển thị tại đây</div>
               </div>
             </div>
-          </>
-        )}
+          )}
+
+          {/* loading skeleton */}
+          {loading && (
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="card-header">
+                <div>
+                  <div className="card-title">Đang tải dữ liệu…</div>
+                  <div className="card-sub">Mã: {searched}</div>
+                </div>
+              </div>
+              <div style={{ padding: '1.5rem' }}>
+                {[1,2,3,4].map(i => (
+                  <div key={i} style={{ display: 'flex', gap: '1rem', marginBottom: '.85rem' }}>
+                    {[60, 90, 80, 130].map((w, j) => (
+                      <div key={j} className="skeleton-cell" style={{ width: w, flexShrink: 0 }} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* error */}
+          {error && (
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="state-box error-state">
+                <span className="state-icon">⚠️</span>
+                <div className="state-title">Không tìm thấy dữ liệu</div>
+                <div className="state-sub">Mã <strong>{searched}</strong> chưa có hồ sơ hoặc chưa nhập liệu.</div>
+              </div>
+            </div>
+          )}
+
+          {/* no records */}
+          {!loading && !error && records !== null && records.length === 0 && (
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="state-box">
+                <span className="state-icon">📭</span>
+                <div className="state-title">Chưa có dữ liệu thai kỳ</div>
+                <div className="state-sub">Bệnh nhân <strong>{searched}</strong> chưa nhập liệu tuần nào.</div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Results ── */}
+          {!loading && !error && records !== null && records.length > 0 && (
+            <>
+              {/* Stat strip */}
+              <div className="card" style={{ marginBottom: 0 }}>
+                <div className="card-header" style={{ borderBottom: 'none', paddingBottom: '0.5rem' }}>
+                  <div>
+                    <div className="card-title">Hồ sơ: {searched}</div>
+                    <div className="card-sub">Theo dõi {totalWeeks} tuần thai kỳ</div>
+                  </div>
+                  <span style={{ fontSize: '.85rem', fontWeight: 600, background: 'var(--sage-dk)', color: '#fff', padding: '.3rem .8rem', borderRadius: 99 }}>
+                    Tuần {records.at(-1).week}
+                  </span>
+                </div>
+                <div className="stat-row">
+                  <div className="stat-box">
+                    <div className="stat-label">Cân nặng gần nhất</div>
+                    <div className="stat-value">{latestW ?? '—'} <span className="stat-unit">kg</span></div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="stat-label">Huyết áp gần nhất</div>
+                    <div className="stat-value">{records.at(-1).blood_pressure ?? '—'}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="stat-label">Tâm trạng gần nhất</div>
+                    <div className="stat-value">{records.at(-1).mood ?? '—'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Line chart */}
+              {weights.length > 0 && (
+                <div className="card" style={{ marginBottom: 0 }}>
+                  <div className="card-header">
+                    <div>
+                      <div className="card-title">Biểu đồ cân nặng</div>
+                      <div className="card-sub">Theo dõi cân nặng qua từng tuần (kg)</div>
+                    </div>
+                  </div>
+                  <div className="chart-wrap">
+                    <ResponsiveContainer width="100%" height={260}>
+                      <LineChart data={chartData} margin={{ top: 10, right: 24, left: -10, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 4" stroke="#cde0d5" vertical={false} />
+                        <XAxis
+                          dataKey="week"
+                          tick={{ fontSize: 12, fill: '#7a9080', fontFamily: 'DM Sans, sans-serif' }}
+                          tickLine={false} axisLine={false}
+                          label={{ value: 'Tuần', position: 'insideRight', offset: 10, fontSize: 12, fill: '#7a9080' }}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 12, fill: '#7a9080', fontFamily: 'DM Sans, sans-serif' }}
+                          tickLine={false} axisLine={false}
+                          domain={['auto', 'auto']}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Line
+                          type="monotone" dataKey="weight"
+                          stroke="#5e8870" strokeWidth={2.5}
+                          dot={<CustomDot />}
+                          activeDot={{ r: 7, fill: '#5e8870', stroke: '#fff', strokeWidth: 2 }}
+                          connectNulls
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Detail table */}
+              <div className="card" style={{ marginBottom: 0 }}>
+                <div className="card-header">
+                  <div>
+                    <div className="card-title">Lịch sử khám</div>
+                    <div className="card-sub">{totalWeeks} bản ghi chi tiết</div>
+                  </div>
+                </div>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Tuần</th>
+                        <th>Cân nặng (kg)</th>
+                        <th>Huyết áp</th>
+                        <th>Ghi chú</th>
+                        <th>Tâm trạng</th>
+                        <th>Thai máy</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {records.map(r => (
+                        <tr key={r.id}>
+                          <td className="td-week">{r.week}</td>
+                          <td>
+                            {r.weight
+                              ? <strong style={{ color: 'var(--sage-dk)' }}>{r.weight}</strong>
+                              : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>
+                            }
+                          </td>
+                          <td>
+                            {r.blood_pressure
+                              ? <span className="bp-pill">{r.blood_pressure}</span>
+                              : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>
+                            }
+                          </td>
+                          <td>
+                            {r.symptoms
+                              ? <span className="tag" title={r.symptoms}>{r.symptoms}</span>
+                              : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>
+                            }
+                          </td>
+                          <td>
+                            {r.mood
+                              ? <span className="tag" title={r.mood}>{r.mood}</span>
+                              : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>
+                            }
+                          </td>
+                          <td>
+                            {r.fetal_movement
+                              ? <span className="tag" title={r.fetal_movement}>{r.fetal_movement}</span>
+                              : <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>—</span>
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── Lên lịch khám ── */}
+          {records !== null && !error && (
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="card-header">
+                <div>
+                  <div className="card-title">Lên lịch khám</div>
+                  <div className="card-sub">Tạo lịch hẹn cho bệnh nhân {searched}</div>
+                </div>
+              </div>
+              <div className="form-body">
+                <form className="form" onSubmit={handleCreateAppointment}>
+                  <div className="field">
+                    <label>Mã bệnh nhân</label>
+                    <input type="text" placeholder="VD: BN4721" value={apptCode} onChange={e => setApptCode(e.target.value)} style={{ textTransform: 'uppercase', letterSpacing: '.04em' }} />
+                  </div>
+                  <div className="field">
+                    <label>Tên lịch khám</label>
+                    <input type="text" placeholder="VD: Khám thai định kỳ" value={apptTitle} onChange={e => setApptTitle(e.target.value)} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="field">
+                      <label>Ngày khám</label>
+                      <input type="date" value={apptDate} onChange={e => setApptDate(e.target.value)} />
+                    </div>
+                    <div className="field">
+                      <label>Giờ khám</label>
+                      <input type="time" value={apptTime} onChange={e => setApptTime(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label>Địa điểm khám</label>
+                    <input type="text" placeholder="VD: Bệnh viện Đa khoa Bình Dương" value={apptLoc} onChange={e => setApptLoc(e.target.value)} />
+                  </div>
+                  {apptMsg && <p className={`msg ${apptMsg.startsWith('✓') ? 'msg-success' : 'msg-error'}`}>{apptMsg}</p>}
+                  <button type="submit" className="btn-submit" disabled={apptSaving || !apptCode.trim() || !apptTitle.trim() || !apptDate || !apptTime}>
+                    {apptSaving ? '⏳ Đang tạo…' : '📅 Tạo lịch khám'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+        </div>
       </main>
     </>
   );
